@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -58,8 +58,8 @@ export default function LoginScreen() {
   const navigate = useNavigation();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={BRAND_COLORS.azulEscuro} />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: BRAND_COLORS.azulEscuro }]}>
+      <StatusBar barStyle="light-content" />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -207,7 +207,7 @@ export default function LoginScreen() {
 
               <TouchableOpacity
                 style={styles.submitButton}
-                onPress={ () => navigate.navigate('AgentHomeScreen' )}
+                onPress={ () => navigate.navigate('CitizenHomeScreen' )}
                 activeOpacity={0.85}
               >
                 <Text style={styles.submitButtonText}>

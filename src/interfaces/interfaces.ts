@@ -9,3 +9,19 @@ export interface VulnerablePerson {
   status: 'pendente' | 'contatado';
   lastAction?: string;
 }
+
+
+export type PlaceType = 'refugio' | 'ubs';
+export type PlaceFilter = 'todos' | PlaceType;
+export interface SupportPoint {
+  id: string;
+  name: string;
+  type: PlaceType;
+  address: string;
+  distanceKm: number;
+  hours: string;
+  status: 'Aberto' | 'Lotação Alta' | 'Fechado';
+  features: string;
+  latitude: number;
+  longitude: number;
+}

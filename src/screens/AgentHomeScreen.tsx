@@ -17,6 +17,7 @@ import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
 import { UserProfile } from './Login';
 import { INITIAL_VULNERABLE_LIST } from '../data/mockData';
 import { VulnerablePerson } from '../interfaces/interfaces';
+import { shadow } from '../theme/shadowTheme';
 
 
 interface AgentHomeScreenProps {
@@ -39,17 +40,7 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'contatado', label: 'Concluídos' },
 ];
 
-const shadow = (isDark: boolean) =>
-  Platform.select({
-    ios: {
-      shadowColor: '#0B1A20',
-      shadowOpacity: isDark ? 0.4 : 0.08,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: 8 },
-    },
-    android: { elevation: isDark ? 0 : 3 },
-    default: {},
-  });
+
 
 export default function AgentHomeScreen({ user, onLogout }: AgentHomeScreenProps) {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
@@ -90,7 +81,7 @@ export default function AgentHomeScreen({ user, onLogout }: AgentHomeScreenProps
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.navHeader }]}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.navHeader} />
+      <StatusBar barStyle="light-content" />
 
       <ScrollView
         style={[styles.body, { backgroundColor: theme.background }]}

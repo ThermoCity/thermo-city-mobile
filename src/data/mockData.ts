@@ -1,4 +1,4 @@
-import { VulnerablePerson } from "../interfaces/interfaces";
+import { SupportPoint, VulnerablePerson } from "../interfaces/interfaces";
 
 export const INITIAL_VULNERABLE_LIST: VulnerablePerson[] = [
   {
@@ -24,5 +24,56 @@ export const INITIAL_VULNERABLE_LIST: VulnerablePerson[] = [
     heatLevel: 'NC3',
     reason: 'Gravidez de risco + exposição térmica residencial',
     status: 'contatado',
+  },
+];
+
+export const SUPPORT_POINTS: SupportPoint[] = [
+  {
+    id: '1',
+    name: 'Refúgio Comunitário Leste',
+    type: 'refugio',
+    address: 'Av. Brasil, 1420 - Centro',
+    distanceKm: 0.8,
+    hours: '08:00 às 20:00',
+    status: 'Aberto',
+    features: 'Ambiente climatizado · Água gelada · Área de descanso',
+    latitude: -22.1215,
+    longitude: -51.3842,
+  },
+  {
+    id: '2',
+    name: 'UBS Cohab Central',
+    type: 'ubs',
+    address: 'Rua Rui Barbosa, 890 - Vila Nova',
+    distanceKm: 1.2,
+    hours: '07:00 às 19:00',
+    status: 'Aberto',
+    features: 'Atendimento médico · Reidratação oral · Triagem térmica',
+    latitude: -22.1298,
+    longitude: -51.3935,
+  },
+  {
+    id: '3',
+    name: 'Centro Cultural Matarazzo (Refúgio)',
+    type: 'refugio',
+    address: 'Rua Quintino Bocaiúva, 749 - Vila Marcondes',
+    distanceKm: 1.9,
+    hours: '09:00 às 21:00',
+    status: 'Aberto',
+    features: 'Salas climatizadas · Bebedouros · Acessibilidade total',
+    latitude: -22.1182,
+    longitude: -51.3951,
+  },
+  {
+    id: '4',
+    name: 'UBS Jardim Santana',
+    type: 'ubs',
+    address: 'Rua José Claro, 412 - Jardim Santana',
+    distanceKm: 2.4,
+    hours: '07:00 às 17:00',
+    status: 'Lotação Alta',
+    features: 'Pronto atendimento · Suporte para grupos de risco',
+    latitude: -22.1331,
+    longitude: -51.3818,
   },
 ];
