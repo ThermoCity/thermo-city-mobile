@@ -1,6 +1,7 @@
 import LoginScreen from './src/screens/Login';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import AgentHomeScreen from './src/screens/AgentHomeScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -12,6 +13,11 @@ export default function App() {
           <Stack.Screen
             name="Login"
             component={LoginScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="AgentHomeScreen"
+            component={AgentHomeScreen}
             options={{ headerShown: false }}
           />
           </Stack.Navigator>

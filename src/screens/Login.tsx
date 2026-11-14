@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ThermoLogo from '../components/ThermoLogo';
 import { BRAND_COLORS } from '../theme/thermoTheme';
+import { useNavigation } from '@react-navigation/native';
 
 export interface UserProfile {
   name: string;
@@ -34,7 +35,7 @@ const ROLES: {
 const PLACEHOLDER_COLOR = '#9AA8B0';
 
 export default function LoginScreen() {
-  
+
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
   const [role, setRole] = useState<'agente' | 'cidadao'>('agente');
   const [name, setName] = useState<string>('');
@@ -53,6 +54,8 @@ export default function LoginScreen() {
     onFocus: () => setFocused(key),
     onBlur: () => setFocused((current) => (current === key ? null : current)),
   });
+
+  const navigate = useNavigation();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -204,7 +207,7 @@ export default function LoginScreen() {
 
               <TouchableOpacity
                 style={styles.submitButton}
-                onPress={ () => {}}
+                onPress={ () => navigate.navigate('AgentHomeScreen' )}
                 activeOpacity={0.85}
               >
                 <Text style={styles.submitButtonText}>
