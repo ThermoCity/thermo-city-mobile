@@ -65,9 +65,9 @@ const getAuthConfig = async () => {
 };
 
 // API JAVA SERVICE
-export const registerService = async (nome, email, senha, telefone, cpf, cep , papel = 'CIDADAO') => {
+export const registerService = async (nome, email, senha, telefone, cpf, cep) => {
   try {
-    const response = await axios.post(API_CREATION_URL, { nome, email, senha, telefone, cpf, cep, papel});
+    const response = await axios.post(API_USER_CREATION_URL, { nome, email, senha, telefone, cpf, cep});
     
     const token = response.data.token || response.data.accessToken;
     const userId = response.data.idResponsavel || response.data.id || response.data.userId;

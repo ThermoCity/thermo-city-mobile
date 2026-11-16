@@ -1,5 +1,4 @@
 // DADOS MOCKADOS PARA DESENVOLVIMENTO
-
 export interface VulnerablePerson {
   id: string;
   name: string;
@@ -42,4 +41,10 @@ export interface NCDescription {
   range: string;
   summary: string;
   recommendation: string;
+}
+
+export interface UserProfile {
+  name: string;
+  role: 'agente' | 'cidadao';
+  unit: string;
 }

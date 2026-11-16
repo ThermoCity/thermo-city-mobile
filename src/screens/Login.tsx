@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,19 +9,16 @@ import {
   Platform,
   ScrollView,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ThermoLogo from '../components/ThermoLogo';
 import { BRAND_COLORS } from '../theme/thermoTheme';
 import { useNavigation } from '@react-navigation/native';
+import { loginService, registerService } from '../services/thermoCityService';
 
-export interface UserProfile {
-  name: string;
-  role: 'agente' | 'cidadao';
-  unit: string;
-}
 
-type FieldKey = 'name' | 'email' | 'code' | 'password';
+type FieldKey = 'name' | 'email' | 'phone' | 'cpf' | 'cep' | 'password';
 
 const ROLES: {
   key: 'agente' | 'cidadao';
@@ -32,18 +29,58 @@ const ROLES: {
   { key: 'cidadao', title: 'Cidadão', subtitle: 'Clima e refúgios' },
 ];
 
-const PLACEHOLDER_COLOR = '#9AA8B0';
 
 export default function LoginScreen() {
-
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
   const [role, setRole] = useState<'agente' | 'cidadao'>('agente');
-  const [name, setName] = useState<string>('');
-  const [email, setEmail] = useState<string>('');
-  const [credentialCode, setCredentialCode] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  
+  // Campos de preenchimento
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [telefone, setTelefone] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [cep, setCep] = useState('');
+
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [focused, setFocused] = useState<FieldKey | null>(null);
+
+  // Máscaras de formatação
+  const handleCpfChange = (text: string) => {
+    let cleaned = text.replace(/\D/g, '').slice(0, 11);
+    let formatted = cleaned
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})/, '$1-$2');
+    setCpf(formatted);
+  };
+
+  const handlePhoneChange = (text: string) => {
+    let cleaned = text.replace(/\D/g, '').slice(0, 11);
+    let formatted = cleaned;
+    if (cleaned.length > 6) {
+      formatted = `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+    } else if (cleaned.length > 2) {
+      formatted = `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+    } else if (cleaned.length > 0) {
+      formatted = `(${cleaned}`;
+    }
+    setTelefone(formatted);
+  };
+
+  const handleCepChange = (text: string) => {
+    let cleaned = text.replace(/\D/g, '').slice(0, 8);
+    // Assegura o prefixo obrigatório de Presidente Prudente (19010)
+    if (!cleaned.startsWith('19010')) {
+      cleaned = '19010' + cleaned.replace(/^19010/, '');
+    }
+    let formatted = cleaned;
+    if (cleaned.length > 5) {
+      formatted = `${cleaned.slice(0, 5)}-${cleaned.slice(5, 8)}`;
+    }
+    setCep(formatted);
+  };
 
   const inputStyle = (key: FieldKey) => [
     styles.input,
@@ -56,6 +93,51 @@ export default function LoginScreen() {
   });
 
   const navigate = useNavigation<any>();
+
+  const handleSubmit = async () => {
+    if (!email || !password) {
+      Alert.alert('Atenção', 'Preencha o e-mail e a senha.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      if (isRegistering) {
+        // Validação estrita para o cadastro de Cidadão
+        if (!name || !telefone || !cpf || !cep) {
+          Alert.alert('Atenção', 'Por favor, preencha todos os campos do cadastro de cidadão.');
+          setIsLoading(false);
+          return;
+        }
+
+        if (cpf.length < 14) {
+          Alert.alert('Atenção', 'Informe um CPF válido e completo.');
+          setIsLoading(false);
+          return;
+        }
+
+        if (cep.length < 9) {
+          Alert.alert('Atenção', 'Informe um CEP completo.');
+          setIsLoading(false);
+          return;
+        }
+        
+        // Chamada do service de registro para perfil Cidadão
+        await registerService(name, email, password, telefone, cpf, cep);
+        Alert.alert('Sucesso', 'Conta de cidadão criada com sucesso!');
+      } else {
+        // Chamada do service de login
+        await loginService(email, password);
+      }
+
+      // Navegação para a Home após sucesso na autenticação/cadastro
+      navigate.navigate('MainTabs', { screen: 'CitizenHomeScreen' });
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Ocorreu um erro na autenticação.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: BRAND_COLORS.azulEscuro }]}>
@@ -104,55 +186,100 @@ export default function LoginScreen() {
 
               <Text style={styles.formTitle}>
                 {isRegistering
-                  ? 'Registe o seu acesso no ThermoCity'
+                  ? 'Crie sua conta de Cidadão no ThermoCity'
                   : 'Acesse a sua central de monitoramento'}
               </Text>
 
-              <Text style={styles.label}>Perfil de acesso</Text>
-              <View style={styles.roleRow}>
-                {ROLES.map((item) => {
-                  const selected = role === item.key;
-                  return (
-                    <TouchableOpacity
-                      key={item.key}
-                      style={[styles.roleButton, selected && styles.roleButtonSelected]}
-                      onPress={() => setRole(item.key)}
-                      activeOpacity={0.85}
-                    >
-                      <View style={styles.roleTop}>
-                        <View style={[styles.radio, selected && styles.radioSelected]}>
-                          {selected && <View style={styles.radioDot} />}
-                        </View>
-                      </View>
-                      <Text style={[styles.roleTitle, selected && styles.roleTitleSelected]}>
-                        {item.title}
-                      </Text>
-                      <Text style={styles.roleSubtitle}>{item.subtitle}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              {/* Seletor de Perfil visível apenas no Login por regra de negócio */}
+              {!isRegistering && (
+                <>
+                  <Text style={styles.label}>Perfil de acesso</Text>
+                  <View style={styles.roleRow}>
+                    {ROLES.map((item) => {
+                      const selected = role === item.key;
+                      return (
+                        <TouchableOpacity
+                          key={item.key}
+                          style={[styles.roleButton, selected && styles.roleButtonSelected]}
+                          onPress={() => setRole(item.key)}
+                          activeOpacity={0.85}
+                        >
+                          <View style={styles.roleTop}>
+                            <View style={[styles.radio, selected && styles.radioSelected]}>
+                              {selected && <View style={styles.radioDot} />}
+                            </View>
+                          </View>
+                          <Text style={[styles.roleTitle, selected && styles.roleTitleSelected]}>
+                            {item.title}
+                          </Text>
+                          <Text style={styles.roleSubtitle}>{item.subtitle}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
 
+              {/* Campos adicionais exclusivos para Cadastro de Cidadão */}
               {isRegistering && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Nome completo</Text>
-                  <TextInput
-                    style={inputStyle('name')}
-                    placeholder="Ex.: Mariana Silva"
-                    placeholderTextColor={PLACEHOLDER_COLOR}
-                    value={name}
-                    onChangeText={setName}
-                    {...focusProps('name')}
-                  />
-                </View>
+                <>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Nome completo</Text>
+                    <TextInput
+                      style={inputStyle('name')}
+                      placeholder="Maria Silva"
+                      value={name}
+                      onChangeText={setName}
+                      {...focusProps('name')}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>CPF</Text>
+                    <TextInput
+                      style={inputStyle('cpf')}
+                      placeholder="529.982.247-25"
+                      keyboardType="numeric"
+                      value={cpf}
+                      onChangeText={handleCpfChange}
+                      maxLength={14}
+                      {...focusProps('cpf')}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Telefone</Text>
+                    <TextInput
+                      style={inputStyle('phone')}
+                      placeholder="(18) 99999-1234"
+                      keyboardType="phone-pad"
+                      value={telefone}
+                      onChangeText={handlePhoneChange}
+                      maxLength={15}
+                      {...focusProps('phone')}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>CEP (Presidente Prudente)</Text>
+                    <TextInput
+                      style={inputStyle('cep')}
+                      placeholder="19010-000"
+                      keyboardType="numeric"
+                      value={cep}
+                      onChangeText={handleCepChange}
+                      maxLength={9}
+                      {...focusProps('cep')}
+                    />
+                  </View>
+                </>
               )}
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>E-mail institucional ou pessoal</Text>
+                <Text style={styles.label}>E-mail</Text>
                 <TextInput
                   style={inputStyle('email')}
-                  placeholder="nome@saude.gov.br"
-                  placeholderTextColor={PLACEHOLDER_COLOR}
+                  placeholder="maria@exemplo.com"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -162,31 +289,12 @@ export default function LoginScreen() {
                 />
               </View>
 
-              {isRegistering && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>
-                    {role === 'agente'
-                      ? 'Matrícula / Registo da Equipe'
-                      : 'Morada ou Código Postal de referência'}
-                  </Text>
-                  <TextInput
-                    style={inputStyle('code')}
-                    placeholder={role === 'agente' ? 'Ex.: ACS-4092' : 'Ex.: 19010-000'}
-                    placeholderTextColor={PLACEHOLDER_COLOR}
-                    value={credentialCode}
-                    onChangeText={setCredentialCode}
-                    {...focusProps('code')}
-                  />
-                </View>
-              )}
-
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Senha</Text>
                 <View style={[styles.passwordWrap, focused === 'password' && styles.inputFocused]}>
                   <TextInput
                     style={styles.passwordInput}
-                    placeholder="••••••••"
-                    placeholderTextColor={PLACEHOLDER_COLOR}
+                    placeholder="senhaForte123"
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
                     value={password}
@@ -206,12 +314,17 @@ export default function LoginScreen() {
               </View>
 
               <TouchableOpacity
-                style={styles.submitButton}
-                onPress={ () => navigate.navigate('MainTabs', { screen: 'Home' }) }
+                style={[styles.submitButton, isLoading && { opacity: 0.7 }]}
+                onPress={handleSubmit}
+                disabled={isLoading}
                 activeOpacity={0.85}
               >
                 <Text style={styles.submitButtonText}>
-                  {isRegistering ? 'Concluir registro' : 'Acessar o painel'}
+                  {isLoading
+                    ? 'Aguarde...'
+                    : isRegistering
+                    ? 'Concluir cadastro de Cidadão'
+                    : 'Acessar o painel'}
                 </Text>
               </TouchableOpacity>
 
@@ -222,7 +335,7 @@ export default function LoginScreen() {
                 <Text style={styles.switchPromptText}>
                   {isRegistering ? 'Já possui conta? ' : 'Ainda não tem conta? '}
                   <Text style={styles.switchPromptHighlight}>
-                    {isRegistering ? 'Iniciar sessão' : 'Criar conta agora'}
+                    {isRegistering ? 'Iniciar sessão' : 'Criar conta de Cidadão'}
                   </Text>
                 </Text>
               </TouchableOpacity>
@@ -250,8 +363,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: 36,
   },
-
-  /* Marca */
   hero: {
     backgroundColor: BRAND_COLORS.azulEscuro,
     alignItems: 'center',
@@ -261,8 +372,6 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
-
-  /* Cartão */
   content: {
     paddingHorizontal: 20,
     marginTop: -44,
@@ -284,8 +393,6 @@ const styles = StyleSheet.create({
       default: {},
     }),
   },
-
-  /* Abas */
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: '#EEF2F4',
@@ -335,8 +442,6 @@ const styles = StyleSheet.create({
     color: '#3E525B',
     marginBottom: 8,
   },
-
-  /* Perfil */
   roleRow: {
     flexDirection: 'row',
     gap: 10,
@@ -390,8 +495,6 @@ const styles = StyleSheet.create({
     color: '#6C7D86',
     marginTop: 3,
   },
-
-  /* Campos */
   inputGroup: {
     marginBottom: 16,
   },
@@ -431,8 +534,6 @@ const styles = StyleSheet.create({
     color: BRAND_COLORS.laranjaSol,
     marginLeft: 10,
   },
-
-  /* Ações */
   submitButton: {
     backgroundColor: BRAND_COLORS.laranjaSol,
     height: 54,

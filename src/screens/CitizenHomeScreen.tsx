@@ -15,9 +15,8 @@ import ThermoLogo from '../components/ThermoLogo';
 import SupportPointCard from '../components/SupportPointCard';
 import SupportPointModal from '../components/SupportPointDetailsBtModal';
 import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
-import { UserProfile } from './Login';
 import { SUPPORT_POINTS } from '../data/mockData';
-import { PlaceFilter, SupportPoint } from '../interfaces/interfaces';
+import { PlaceFilter, SupportPoint, UserProfile } from '../interfaces/interfaces';
 import { shadow } from '../theme/shadowTheme';
 import { getPlaceBadgeConfig } from '../utils/placeUtils';
 

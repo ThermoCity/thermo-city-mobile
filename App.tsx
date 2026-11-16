@@ -1,15 +1,15 @@
 import LoginScreen from './src/screens/Login';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import AgentHomeScreen from './src/screens/AgentHomeScreen';
-import CitizenHomeScreen from './src/screens/CitizenHomeScreen';
 import MainTabs from './src/components/MainTabs';
+import { AuthProvider } from './src/context/AuthProvider';
 
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
+    <AuthProvider>
     <NavigationContainer>
         <Stack.Navigator>
           <Stack.Screen
@@ -24,5 +24,6 @@ export default function App() {
           />
           </Stack.Navigator>
     </NavigationContainer>
-  )
+  </AuthProvider>
+  );
 }
