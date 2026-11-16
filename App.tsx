@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './src/context/AuthProvider';
 import LoginScreen from './src/screens/Login';
 import MainTabs from './src/components/MainTabs';
 import { BRAND_COLORS } from './src/theme/thermoTheme';
+import RegisterForms from './src/screens/RegisterForms';
 
 const Stack = createNativeStackNavigator();
 
@@ -26,7 +27,10 @@ function AppRoutes() {
       {!isAuthenticated ? (
         <Stack.Screen name="Login" component={LoginScreen} />
       ) : (
+        <>  
         <Stack.Screen name="MainTabs" component={MainTabs} />
+        <Stack.Screen name="RegisterForms" component={RegisterForms} />
+        </>
       )}
     </Stack.Navigator>
   );
@@ -34,7 +38,7 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    // 2. Envolva toda a aplicação com o GestureHandlerRootView
+    // PRECISEI ENVOLVER A APLICAÇÃO COM GestureHandlerRootView PARA QUE O REACT-NATIVE-GESTURE-HANDLER FUNCIONE CORRETAMENTE NA PAGINA DE LISTAGEM DE FAMILIARES (CitizenFamiliarListScreen)
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
         <NavigationContainer>

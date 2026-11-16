@@ -71,11 +71,6 @@ export default function MainTabs() {
             options={{ tabBarLabel: 'Painel Agente' }}
           />
           <Tab.Screen
-            name="Register"
-            component={RegisterForms}
-            options={{ tabBarLabel: 'Nova Ocorrência' }}
-          />
-          <Tab.Screen
             name="Guide"
             component={CitizenGuideScreen}
             options={{ tabBarLabel: 'Protocolos' }}
@@ -93,11 +88,6 @@ export default function MainTabs() {
             name="Guide"
             component={CitizenGuideScreen}
             options={{ tabBarLabel: 'Guia do Calor' }}
-          />
-          <Tab.Screen
-            name="Register"
-            component={RegisterForms}
-            options={{ tabBarLabel: 'Formulário' }}
           />
           <Tab.Screen
             name="FamiliarList"

@@ -13,11 +13,15 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import ThermoLogo from '../components/ThermoLogo';
 import { BRAND_COLORS } from '../theme/thermoTheme';
-import { useNavigation } from '@react-navigation/native';
-import { registerVulnerablePersonService } from '../services/thermoCityService';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import {
+  registerVulnerablePersonService,
+  updateFamilyMemberService, // ⚠️ precisa existir em thermoCityService (ver observação)
+} from '../services/thermoCityService';
 
 type FieldKey =
   | 'nome'
@@ -34,59 +38,65 @@ const DEFAULT_COORDS = {
   longitude: -51.3889,
 };
 
+/* ───────── Máscaras (funções puras, reutilizadas na hidratação inicial) ───────── */
+const formatDate = (text: string) => {
+  const cleaned = text.replace(/\D/g, '').slice(0, 8);
+  if (cleaned.length > 6) return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}`;
+  if (cleaned.length > 4) return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}`;
+  return cleaned;
+};
+
+const formatPhone = (text: string) => {
+  const cleaned = text.replace(/\D/g, '').slice(0, 11);
+  if (cleaned.length > 6) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+  if (cleaned.length > 2) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+  if (cleaned.length > 0) return `(${cleaned}`;
+  return cleaned;
+};
+
+const formatCep = (text: string) => {
+  const cleaned = text.replace(/\D/g, '').slice(0, 8);
+  if (cleaned.length > 5) return `${cleaned.slice(0, 5)}-${cleaned.slice(5, 8)}`;
+  return cleaned;
+};
+
 export default function RegisterForms() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
 
-  // Estados dos campos do JSON
-  const [nome, setNome] = useState('');
-  const [dataNascimento, setDataNascimento] = useState('');
-  const [sexo, setSexo] = useState<'M' | 'F' | ''>('');
-  const [telefone, setTelefone] = useState('');
-  const [endereco, setEndereco] = useState('');
-  const [cep, setCep] = useState('');
-  const [moraSozinho, setMoraSozinho] = useState(false);
-  const [mobilidadeReduzida, setMobilidadeReduzida] = useState(false);
-  const [condicaoCronica, setCondicaoCronica] = useState(false);
-  const [contatoReferenciaNome, setContatoReferenciaNome] = useState('');
-  const [contatoReferenciaTelefone, setContatoReferenciaTelefone] = useState('');
-  const [consentimentoLgpd, setConsentimentoLgpd] = useState(false);
+  // Se veio um familiar COM id → edição. Sem id (ou sem param) → criação.
+  const familiarParam = route.params?.familiarToEdit;
+  const isEditing = !!familiarParam?.id;
+
+  const initialCep = formatCep(String(familiarParam?.cep ?? ''));
+
+  // Estados dos campos (hidratados com o familiar quando em edição)
+  const [nome, setNome] = useState<string>(familiarParam?.nome ?? '');
+  const [dataNascimento, setDataNascimento] = useState<string>(
+    formatDate(String(familiarParam?.dataNascimento ?? '').slice(0, 10))
+  );
+  const [sexo, setSexo] = useState<'M' | 'F' | ''>(
+    familiarParam?.sexo === 'M' || familiarParam?.sexo === 'F' ? familiarParam.sexo : ''
+  );
+  const [telefone, setTelefone] = useState<string>(formatPhone(String(familiarParam?.telefone ?? '')));
+  const [endereco, setEndereco] = useState<string>(familiarParam?.endereco ?? '');
+  const [cep, setCep] = useState<string>(initialCep);
+  const [moraSozinho, setMoraSozinho] = useState<boolean>(!!familiarParam?.moraSozinho);
+  const [mobilidadeReduzida, setMobilidadeReduzida] = useState<boolean>(!!familiarParam?.mobilidadeReduzida);
+  const [condicaoCronica, setCondicaoCronica] = useState<boolean>(!!familiarParam?.condicaoCronica);
+  const [contatoReferenciaNome, setContatoReferenciaNome] = useState<string>(
+    familiarParam?.contatoReferenciaNome ?? ''
+  );
+  const [contatoReferenciaTelefone, setContatoReferenciaTelefone] = useState<string>(
+    formatPhone(String(familiarParam?.contatoReferenciaTelefone ?? ''))
+  );
+  // Em edição o consentimento já foi dado no cadastro, então começa marcado
+  const [consentimentoLgpd, setConsentimentoLgpd] = useState<boolean>(
+    isEditing ? familiarParam?.consentimentoLgpd ?? true : false
+  );
 
   const [isLoading, setIsLoading] = useState(false);
   const [focused, setFocused] = useState<FieldKey | null>(null);
-
-  // Máscaras
-  const handleDateChange = (text: string) => {
-    let cleaned = text.replace(/\D/g, '').slice(0, 8);
-    let formatted = cleaned;
-    if (cleaned.length > 6) {
-      formatted = `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}`;
-    } else if (cleaned.length > 4) {
-      formatted = `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}`;
-    }
-    setDataNascimento(formatted);
-  };
-
-  const handlePhoneChange = (text: string, setter: (val: string) => void) => {
-    let cleaned = text.replace(/\D/g, '').slice(0, 11);
-    let formatted = cleaned;
-    if (cleaned.length > 6) {
-      formatted = `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
-    } else if (cleaned.length > 2) {
-      formatted = `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
-    } else if (cleaned.length > 0) {
-      formatted = `(${cleaned}`;
-    }
-    setter(formatted);
-  };
-
-  const handleCepChange = (text: string) => {
-    let cleaned = text.replace(/\D/g, '').slice(0, 8);
-    let formatted = cleaned;
-    if (cleaned.length > 5) {
-      formatted = `${cleaned.slice(0, 5)}-${cleaned.slice(5, 8)}`;
-    }
-    setCep(formatted);
-  };
 
   const inputStyle = (key: FieldKey) => [
     styles.input,
@@ -98,19 +108,12 @@ export default function RegisterForms() {
     onBlur: () => setFocused((current) => (current === key ? null : current)),
   });
 
-  const resetForm = () => {
-    setNome('');
-    setDataNascimento('');
-    setSexo('');
-    setTelefone('');
-    setEndereco('');
-    setCep('');
-    setMoraSozinho(false);
-    setMobilidadeReduzida(false);
-    setCondicaoCronica(false);
-    setContatoReferenciaNome('');
-    setContatoReferenciaTelefone('');
-    setConsentimentoLgpd(false);
+  const goBackToList = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Home');
+    }
   };
 
   const resolveCoordinates = async (addressText: string, cepText: string) => {
@@ -152,15 +155,26 @@ export default function RegisterForms() {
 
     setIsLoading(true);
     try {
-      // Converte o endereço em latitude e longitude antes de montar o JSON
-      const coords = await resolveCoordinates(endereco, cep);
+      // Na edição, só refaz a geocodificação se endereço/CEP mudaram e já houver coordenadas salvas
+      const addressChanged =
+        !isEditing || endereco !== (familiarParam?.endereco ?? '') || cep !== initialCep;
+      const hasSavedCoords =
+        familiarParam?.latitude != null && familiarParam?.longitude != null;
+
+      const coords =
+        !addressChanged && hasSavedCoords
+          ? {
+              latitude: Number(familiarParam.latitude),
+              longitude: Number(familiarParam.longitude),
+            }
+          : await resolveCoordinates(endereco, cep);
 
       const payload = {
-        nome,
+        nome: nome.trim(),
         dataNascimento,
         sexo,
         telefone,
-        endereco,
+        endereco: endereco.trim(),
         cep,
         latitude: coords.latitude,
         longitude: coords.longitude,
@@ -172,14 +186,27 @@ export default function RegisterForms() {
         consentimentoLgpd,
       };
 
-      await registerVulnerablePersonService(payload);
+      if (isEditing) {
+        await updateFamilyMemberService(familiarParam.id, { id: familiarParam.id, ...payload });
+      } else {
+        await registerVulnerablePersonService(payload);
+      }
 
-      resetForm();
-      Alert.alert('Sucesso', 'Familiar vulnerável cadastrado com sucesso!', [
-        { text: 'OK', onPress: () => navigation.navigate('Home') },
-      ]);
+      Alert.alert(
+        'Sucesso',
+        isEditing
+          ? `${nome.trim()} foi atualizado com sucesso!`
+          : 'Familiar vulnerável cadastrado com sucesso!',
+        [{ text: 'OK', onPress: goBackToList }]
+      );
     } catch (error: any) {
-      Alert.alert('Erro', error?.message || 'Não foi possível realizar o cadastro.');
+      Alert.alert(
+        'Erro',
+        error?.message ||
+          (isEditing
+            ? 'Não foi possível atualizar o familiar.'
+            : 'Não foi possível realizar o cadastro.')
+      );
     } finally {
       setIsLoading(false);
     }
@@ -201,10 +228,26 @@ export default function RegisterForms() {
         >
           {/* Cabeçalho */}
           <View style={styles.hero}>
-            <ThermoLogo variant="dark" showText={false} size={48} />
-            <Text style={styles.heroTitle}>Cadastro de Familiar Vulnerável</Text>
+            <View style={styles.heroTopRow}>
+              <TouchableOpacity
+                accessibilityLabel="Voltar"
+                activeOpacity={0.75}
+                style={styles.backButton}
+                onPress={goBackToList}
+              >
+                <Ionicons name="arrow-back" size={19} color={BRAND_COLORS.branco} />
+              </TouchableOpacity>
+              <ThermoLogo variant="dark" showText={false} size={44} />
+              <View style={styles.backButton} pointerEvents="none" />
+            </View>
+
+            <Text style={styles.heroTitle}>
+              {isEditing ? 'Editar Familiar' : 'Cadastro de Familiar Vulnerável'}
+            </Text>
             <Text style={styles.heroSubtitle}>
-              Proteção e monitoramento ativo para quem você ama em dias de calor extremo.
+              {isEditing
+                ? `Modificando as informações de ${nome || 'seu familiar'}.`
+                : 'Proteção e monitoramento ativo para quem você ama em dias de calor extremo.'}
             </Text>
           </View>
 
@@ -233,7 +276,7 @@ export default function RegisterForms() {
                     keyboardType="numeric"
                     maxLength={10}
                     value={dataNascimento}
-                    onChangeText={handleDateChange}
+                    onChangeText={(t) => setDataNascimento(formatDate(t))}
                     {...focusProps('dataNascimento')}
                   />
                 </View>
@@ -266,7 +309,7 @@ export default function RegisterForms() {
                   keyboardType="phone-pad"
                   maxLength={15}
                   value={telefone}
-                  onChangeText={(t) => handlePhoneChange(t, setTelefone)}
+                  onChangeText={(t) => setTelefone(formatPhone(t))}
                   {...focusProps('telefone')}
                 />
               </View>
@@ -292,7 +335,7 @@ export default function RegisterForms() {
                   keyboardType="numeric"
                   maxLength={9}
                   value={cep}
-                  onChangeText={handleCepChange}
+                  onChangeText={(t) => setCep(formatCep(t))}
                   {...focusProps('cep')}
                 />
               </View>
@@ -347,7 +390,7 @@ export default function RegisterForms() {
                   keyboardType="phone-pad"
                   maxLength={15}
                   value={contatoReferenciaTelefone}
-                  onChangeText={(t) => handlePhoneChange(t, setContatoReferenciaTelefone)}
+                  onChangeText={(t) => setContatoReferenciaTelefone(formatPhone(t))}
                   {...focusProps('contatoReferenciaTelefone')}
                 />
               </View>
@@ -371,8 +414,20 @@ export default function RegisterForms() {
                 disabled={isLoading}
                 activeOpacity={0.85}
               >
+                <Ionicons
+                  name={isEditing ? 'save-outline' : 'person-add-outline'}
+                  size={19}
+                  color={BRAND_COLORS.azulEscuro}
+                  style={{ marginRight: 8 }}
+                />
                 <Text style={styles.submitButtonText}>
-                  {isLoading ? 'Salvando...' : 'Cadastrar Familiar'}
+                  {isLoading
+                    ? isEditing
+                      ? 'Atualizando...'
+                      : 'Salvando...'
+                    : isEditing
+                      ? 'Salvar Alterações'
+                      : 'Cadastrar Familiar'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -402,11 +457,26 @@ const styles = StyleSheet.create({
   hero: {
     backgroundColor: BRAND_COLORS.azulEscuro,
     alignItems: 'center',
-    paddingTop: 24,
+    paddingTop: 12,
     paddingBottom: 48,
     paddingHorizontal: 24,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
+  },
+  heroTopRow: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  backButton: {
+    height: 40,
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   heroTitle: {
     color: '#FFFFFF',
@@ -529,6 +599,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   submitButton: {
+    flexDirection: 'row',
     backgroundColor: BRAND_COLORS.laranjaSol,
     height: 54,
     borderRadius: 999,
