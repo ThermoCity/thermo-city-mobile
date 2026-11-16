@@ -48,3 +48,16 @@ export interface UserProfile {
   role: 'agente' | 'cidadao';
   unit: string;
 }
+
+export interface Familiar {
+  id?: string | number;
+  nome: string;
+  dataNascimento: string;
+  sexo: string;
+  telefone: string;
+  endereco: string;
+  cep: string;
+  moraSozinho: boolean;
+  mobilidadeReduzida: boolean;
+  condicaoCronica: boolean;
+}

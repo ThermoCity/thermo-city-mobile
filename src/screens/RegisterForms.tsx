@@ -13,18 +13,26 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 import ThermoLogo from '../components/ThermoLogo';
 import { BRAND_COLORS } from '../theme/thermoTheme';
 import { useNavigation } from '@react-navigation/native';
+import { registerVulnerablePersonService } from '../services/thermoCityService';
 
-type FieldKey = 
-  | 'nome' 
-  | 'dataNascimento' 
-  | 'telefone' 
-  | 'endereco' 
-  | 'cep' 
-  | 'contatoReferenciaNome' 
+type FieldKey =
+  | 'nome'
+  | 'dataNascimento'
+  | 'telefone'
+  | 'endereco'
+  | 'cep'
+  | 'contatoReferenciaNome'
   | 'contatoReferenciaTelefone';
+
+// Coordenadas padrão de Presidente Prudente caso a geocodificação não encontre o endereço exato
+const DEFAULT_COORDS = {
+  latitude: -22.1256,
+  longitude: -51.3889,
+};
 
 export default function RegisterForms() {
   const navigation = useNavigation<any>();
@@ -50,10 +58,10 @@ export default function RegisterForms() {
   const handleDateChange = (text: string) => {
     let cleaned = text.replace(/\D/g, '').slice(0, 8);
     let formatted = cleaned;
-    if (cleaned.length > 4) {
+    if (cleaned.length > 6) {
       formatted = `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}`;
-    } else if (cleaned.length > 0) {
-      formatted = `${cleaned.slice(0, 4)}`;
+    } else if (cleaned.length > 4) {
+      formatted = `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}`;
     }
     setDataNascimento(formatted);
   };
@@ -90,9 +98,50 @@ export default function RegisterForms() {
     onBlur: () => setFocused((current) => (current === key ? null : current)),
   });
 
+  const resetForm = () => {
+    setNome('');
+    setDataNascimento('');
+    setSexo('');
+    setTelefone('');
+    setEndereco('');
+    setCep('');
+    setMoraSozinho(false);
+    setMobilidadeReduzida(false);
+    setCondicaoCronica(false);
+    setContatoReferenciaNome('');
+    setContatoReferenciaTelefone('');
+    setConsentimentoLgpd(false);
+  };
+
+  const resolveCoordinates = async (addressText: string, cepText: string) => {
+    try {
+      const fullQuery = `${addressText}, Presidente Prudente - SP, ${cepText}, Brasil`;
+      const results = await Location.geocodeAsync(fullQuery);
+      if (results && results.length > 0) {
+        return {
+          latitude: results[0].latitude,
+          longitude: results[0].longitude,
+        };
+      }
+    } catch (e) {
+      console.log('Geocoding falhou, usando coordenadas padrão:', e);
+    }
+    return DEFAULT_COORDS;
+  };
+
   const handleSubmit = async () => {
     if (!nome || !dataNascimento || !sexo || !telefone || !cep || !endereco) {
       Alert.alert('Atenção', 'Preencha todos os campos obrigatórios principais.');
+      return;
+    }
+
+    if (dataNascimento.length < 10) {
+      Alert.alert('Atenção', 'Informe a data de nascimento completa (AAAA-MM-DD).');
+      return;
+    }
+
+    if (cep.length < 9) {
+      Alert.alert('Atenção', 'Informe um CEP completo.');
       return;
     }
 
@@ -101,30 +150,33 @@ export default function RegisterForms() {
       return;
     }
 
-    const payload = {
-      nome,
-      dataNascimento,
-      sexo,
-      telefone,
-      endereco,
-      cep,
-      moraSozinho,
-      mobilidadeReduzida,
-      condicaoCronica,
-      contatoReferenciaNome,
-      contatoReferenciaTelefone,
-      consentimentoLgpd,
-    };
-
     setIsLoading(true);
     try {
-      // Simulação de envio para o Service / API
-      console.log('JSON gerado para envio:', JSON.stringify(payload, null, 2));
-      
-      // Exemplo de integração: await registerVulnerablePersonService(payload);
+      // Converte o endereço em latitude e longitude antes de montar o JSON
+      const coords = await resolveCoordinates(endereco, cep);
 
+      const payload = {
+        nome,
+        dataNascimento,
+        sexo,
+        telefone,
+        endereco,
+        cep,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        moraSozinho,
+        mobilidadeReduzida,
+        condicaoCronica,
+        contatoReferenciaNome,
+        contatoReferenciaTelefone,
+        consentimentoLgpd,
+      };
+
+      await registerVulnerablePersonService(payload);
+
+      resetForm();
       Alert.alert('Sucesso', 'Familiar vulnerável cadastrado com sucesso!', [
-        { text: 'OK', onPress: () => navigation.goBack() }
+        { text: 'OK', onPress: () => navigation.navigate('Home') },
       ]);
     } catch (error: any) {
       Alert.alert('Erro', error?.message || 'Não foi possível realizar o cadastro.');
@@ -159,7 +211,6 @@ export default function RegisterForms() {
           {/* Formulário */}
           <View style={styles.content}>
             <View style={styles.card}>
-              
               {/* Nome */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Nome Completo *</Text>
@@ -324,7 +375,6 @@ export default function RegisterForms() {
                   {isLoading ? 'Salvando...' : 'Cadastrar Familiar'}
                 </Text>
               </TouchableOpacity>
-
             </View>
           </View>
         </ScrollView>

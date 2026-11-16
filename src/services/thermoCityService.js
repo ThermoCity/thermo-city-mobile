@@ -5,6 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 const API_USER_CREATION_URL = process.env.EXPO_PUBLIC_API_JAVA_CADASTRO;
 const API_LOGIN_URL = process.env.EXPO_PUBLIC_API_JAVA_LOGIN;
 
+const API_CRUD_FAMILIARES_URL = process.env.EXPO_PUBLIC_API_NET_CRUD_FAMILIARES_VULNERAVEIS;
 
 const TOKEN_KEY = 'user_token';
 const USER_ID_KEY = 'user_id';
@@ -36,14 +37,13 @@ const storage = {
   }
 };
 
-// ... mantenha o resto igual ...
 
 export const getStoredUserId = async () => {
-  return await storage.getItem(USER_ID_KEY); // Corrigido de getItemAsync para getItem
+  return await storage.getItem(USER_ID_KEY);
 };
 
 export const getStoredToken = async () => {
-  return await storage.getItem(TOKEN_KEY); // Corrigido de getItemAsync para getItem
+  return await storage.getItem(TOKEN_KEY); 
 };
 
 const getAuthConfig = async () => {
@@ -130,6 +130,92 @@ export const logoutService = async () => {
   }
 };
 
+// API .NET SERVICE
+export const registerVulnerablePersonService = async (familiarData) => {
+  try {
+    const config = await getAuthConfig();
 
+    const payload = {
+      nome: familiarData.nome.trim(),
+      dataNascimento: familiarData.dataNascimento, 
+      sexo: familiarData.sexo,                     
+      telefone: familiarData.telefone,            
+      endereco: familiarData.endereco.trim(),
+      cep: familiarData.cep,                       
+      latitude: Number(familiarData.latitude),
+      longitude: Number(familiarData.longitude),
+      moraSozinho: Boolean(familiarData.moraSozinho),
+      mobilidadeReduzida: Boolean(familiarData.mobilidadeReduzida),
+      condicaoCronica: Boolean(familiarData.condicaoCronica),
+      contatoReferenciaNome: familiarData.contatoReferenciaNome?.trim() || '',
+      contatoReferenciaTelefone: familiarData.contatoReferenciaTelefone || '',
+      consentimentoLgpd: Boolean(familiarData.consentimentoLgpd),
+    };
 
+    const response = await axios.post(API_CRUD_FAMILIARES_URL, payload, config);
+    return response.data;
+  } catch (error) {
+    console.log('Status do erro (.NET):', error.response?.status);
+    console.log('Detalhe retornado pela API .NET:', JSON.stringify(error.response?.data, null, 2));
+    throw new Error(
+      error.response?.data?.message ||
+      error.response?.data?.title ||
+      'Erro ao cadastrar o familiar vulnerável.'
+    );
+  }
+};
 
+export const getFamilyMembersService = async () => {
+  try {
+    const config = await getAuthConfig();
+    console.log('Tentando buscar na URL:', API_CRUD_FAMILIARES_URL);
+
+    const response = await axios.get(API_CRUD_FAMILIARES_URL, config);
+    
+    const data = response.data;
+
+    if (data && Array.isArray(data.conteudo)) {
+      return data.conteudo;
+    }
+    if (data && Array.isArray(data.content)) {
+      return data.content;
+    }
+    
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Erro detalhado ao buscar familiares:', {
+      mensagem: error.message,
+      respostaServidor: error.response?.data,
+      status: error.response?.status,
+      urlUtilizada: API_CRUD_FAMILIARES_URL,
+    });
+    
+    throw new Error(
+      error.response?.data?.message || 
+      error.message || 
+      'Não foi possível carregar os familiares.'
+    );
+  }
+};
+
+export const updateFamilyMemberService = async (id, familiarData) => {
+  try {
+    const config = await getAuthConfig();
+    const response = await axios.put(`${API_CRUD_FAMILIARES_URL}/${id}`, familiarData, config);
+    return response.data;
+  } catch (error) {
+    console.log('Erro ao atualizar familiar:', error.response?.data);
+    throw new Error(error.response?.data?.message || 'Não foi possível atualizar o familiar.');
+  }
+};
+
+export const deleteFamilyMemberService = async (id) => {
+  try {
+    const config = await getAuthConfig();
+    const response = await axios.delete(`${API_CRUD_FAMILIARES_URL}/${id}`, config);
+    return response.data;
+  } catch (error) {
+    console.log('Erro ao deletar familiar:', error.response?.data);
+    throw new Error(error.response?.data?.message || 'Não foi possível remover o familiar.');
+  }
+};

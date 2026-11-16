@@ -10,6 +10,7 @@ import CitizenGuideScreen from '../screens/CitizenGuideScreen';
 import RegisterForms from '../screens/RegisterForms';
 
 import AgentHomeScreen from '../screens/AgentHomeScreen';
+import CitizenFamiliarListScreen from '../screens/CitizenFamiliarListScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -99,9 +100,9 @@ export default function MainTabs() {
             options={{ tabBarLabel: 'Formulário' }}
           />
           <Tab.Screen
-            name="Profile"
-            component={RegisterForms}
-            options={{ tabBarLabel: 'Perfil' }}
+            name="FamiliarList"
+            component={CitizenFamiliarListScreen}
+            options={{ tabBarLabel: 'Familiares' }}
           />
         </>
       )}
