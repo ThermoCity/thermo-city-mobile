@@ -41,7 +41,6 @@ const FILTERS: { key: Filter; label: string }[] = [
 ];
 
 
-
 export default function AgentHomeScreen({ user, onLogout }: AgentHomeScreenProps) {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [contacts, setContacts] = useState<VulnerablePerson[]>(INITIAL_VULNERABLE_LIST);

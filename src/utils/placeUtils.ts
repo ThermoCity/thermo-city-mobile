@@ -1,6 +1,8 @@
 import { BRAND_COLORS } from '../theme/thermoTheme';
 import { PlaceType } from '../interfaces/interfaces';
 
+// UTILITARIO PARA ALTERAR A COR DOS CARDS DE UBS E REFUGIO DE ACORDO COM O TEMA SELECIONADO 
+
 export const getPlaceBadgeConfig = (type: PlaceType, isDarkMode: boolean) => {
   if (type === 'refugio') {
     return {

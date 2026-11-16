@@ -55,7 +55,7 @@ export default function LoginScreen() {
     onBlur: () => setFocused((current) => (current === key ? null : current)),
   });
 
-  const navigate = useNavigation();
+  const navigate = useNavigation<any>();
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: BRAND_COLORS.azulEscuro }]}>
@@ -207,7 +207,7 @@ export default function LoginScreen() {
 
               <TouchableOpacity
                 style={styles.submitButton}
-                onPress={ () => navigate.navigate('CitizenHomeScreen' )}
+                onPress={ () => navigate.navigate('MainTabs', { screen: 'Home' }) }
                 activeOpacity={0.85}
               >
                 <Text style={styles.submitButtonText}>

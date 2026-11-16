@@ -25,3 +25,21 @@ export interface SupportPoint {
   latitude: number;
   longitude: number;
 }
+
+export type TipCategory = 'todas' | 'hidratacao' | 'protecao' | 'sintomas';
+
+export interface HeatTip {
+  id: string;
+  category: Exclude<TipCategory, 'todas'>;
+  categoryLabel: string;
+  tag: string;
+  title: string;
+  description: string;
+}
+
+export interface NCDescription {
+  code: string;
+  range: string;
+  summary: string;
+  recommendation: string;
+}

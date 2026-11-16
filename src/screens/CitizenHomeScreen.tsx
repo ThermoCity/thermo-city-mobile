@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Circle, PROVIDER_GOOGLE } from 'react-native-maps';
 import ThermoLogo from '../components/ThermoLogo';
 import SupportPointCard from '../components/SupportPointCard';
-import SupportPointModal from '../components/SupportPointModal';
+import SupportPointModal from '../components/SupportPointDetailsBtModal';
 import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
 import { UserProfile } from './Login';
 import { SUPPORT_POINTS } from '../data/mockData';
@@ -26,6 +26,7 @@ interface CitizenHomeScreenProps {
   onLogout: () => void;
 }
 
+// AQUI ESTAMOS USANDO UMA LOCALIZAÇÃO FIXA PARA SIMULAR A CIDADE PILOTO DO PROJETO, QUE É PRESIDENTE PRUDENTE 
 const USER_LOCATION = {
   latitude: -22.1256,
   longitude: -51.3889,

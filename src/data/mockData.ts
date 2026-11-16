@@ -1,4 +1,4 @@
-import { SupportPoint, VulnerablePerson } from "../interfaces/interfaces";
+import { NCDescription, SupportPoint, VulnerablePerson } from "../interfaces/interfaces";
 
 export const INITIAL_VULNERABLE_LIST: VulnerablePerson[] = [
   {
@@ -77,3 +77,38 @@ export const SUPPORT_POINTS: SupportPoint[] = [
     longitude: -51.3818,
   },
 ];
+
+export const NC_DETAILS: Record<string, NCDescription> = {
+  NC1: {
+    code: 'NC1',
+    range: 'Abaixo de 32°C',
+    summary: 'Condição térmica dentro da normalidade climática da região.',
+    recommendation: 'Mantenha hábitos regulares de hidratação ao longo do dia.',
+  },
+  NC2: {
+    code: 'NC2',
+    range: '32°C a 34°C',
+    summary: 'Elevação gradual de temperatura com desconforto leve no período da tarde.',
+    recommendation: 'Reforce o consumo de água e use protetor solar ao ar livre.',
+  },
+  NC3: {
+    code: 'NC3',
+    range: '35°C a 37°C',
+    summary: 'Calor intenso por horas consecutivas com risco moderado à saúde.',
+    recommendation: 'Evite exercícios físicos entre 10h e 17h e redobre atenção com idosos.',
+  },
+  NC4: {
+    code: 'NC4',
+    range: '38°C a 40°C (ou +48h)',
+    summary: 'Onda de calor severa com alto risco de desidratação e exaustão térmica.',
+    recommendation:
+      'Busque locais climatizados, hidrate-se a cada 30 min e utilize os Refúgios Comunitários.',
+  },
+  NC5: {
+    code: 'NC5',
+    range: 'Acima de 40°C extremo',
+    summary: 'Emergência climática com risco crítico de insolação e agravamento clínico.',
+    recommendation:
+      'Suspenda atividades externas. Ao menor sintoma de mal-estar, procure imediatamente uma UBS.',
+  },
+};
