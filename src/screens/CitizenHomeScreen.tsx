@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StatusBar,
   Platform,
   Linking,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Circle, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -16,16 +17,13 @@ import SupportPointCard from '../components/SupportPointCard';
 import SupportPointModal from '../components/SupportPointDetailsBtModal';
 import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
 import { SUPPORT_POINTS } from '../data/mockData';
-import { PlaceFilter, SupportPoint, UserProfile } from '../interfaces/interfaces';
+import { PlaceFilter, SupportPoint } from '../interfaces/interfaces';
 import { shadow } from '../theme/shadowTheme';
 import { getPlaceBadgeConfig } from '../utils/placeUtils';
+import { useAuth } from '../context/AuthProvider';
+import { logoutService } from '../services/thermoCityService';
 
-interface CitizenHomeScreenProps {
-  user: UserProfile;
-  onLogout: () => void;
-}
-
-// AQUI ESTAMOS USANDO UMA LOCALIZAÇÃO FIXA PARA SIMULAR A CIDADE PILOTO DO PROJETO, QUE É PRESIDENTE PRUDENTE 
+// AQUI ESTAMOS USANDO UMA LOCALIZAÇÃO FIXA PARA SIMULAR A CIDADE PILOTO DO PROJETO, QUE É PRESIDENTE PRUDENTE[cite: 7]
 const USER_LOCATION = {
   latitude: -22.1256,
   longitude: -51.3889,
@@ -39,7 +37,8 @@ const FILTERS: { key: PlaceFilter; label: string }[] = [
   { key: 'ubs', label: 'UBS Próximas' },
 ];
 
-export default function CitizenHomeScreen({ user, onLogout }: CitizenHomeScreenProps) {
+export default function CitizenHomeScreen() {
+  const { user, logout } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [filter, setFilter] = useState<PlaceFilter>('todos');
   const [selectedPoint, setSelectedPoint] = useState<SupportPoint | null>(null);
@@ -47,6 +46,26 @@ export default function CitizenHomeScreen({ user, onLogout }: CitizenHomeScreenP
   const theme = isDarkMode ? THEMES.dark : THEMES.light;
   const currentAlert = HEAT_LEVELS.NC4;
   const cardShadow = shadow(isDarkMode);
+
+  const handleLogout = async () => {
+    Alert.alert('Sair da conta', 'Deseja realmente encerrar sua sessão?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Sair',
+        style: 'destructive',
+        onPress: async () => {
+    try {
+      await logoutService();
+      if (logout) {
+        await logout();
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível encerrar a sessão.');
+    }
+  }
+  },
+]);
+}
 
   const visiblePoints = useMemo(() => {
     const list =
@@ -70,9 +89,7 @@ export default function CitizenHomeScreen({ user, onLogout }: CitizenHomeScreenP
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.navHeader }]}>
-      <StatusBar
-        barStyle="light-content"
-      />
+      <StatusBar barStyle="light-content" />
 
       <ScrollView
         style={[styles.body, { backgroundColor: theme.background }]}
@@ -104,7 +121,7 @@ export default function CitizenHomeScreen({ user, onLogout }: CitizenHomeScreenP
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.iconBtn, styles.logoutBtn]}
-                onPress={onLogout}
+                onPress={handleLogout}
                 activeOpacity={0.7}
               >
                 <Text style={styles.logoutText}>Sair</Text>

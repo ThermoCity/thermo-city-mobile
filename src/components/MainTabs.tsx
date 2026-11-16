@@ -1,15 +1,22 @@
+import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useColorScheme, Platform } from 'react-native';
+import { useColorScheme, Platform, StyleSheet } from 'react-native';
+import { useAuth } from '../context/AuthProvider';
+import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
+
 import CitizenHomeScreen from '../screens/CitizenHomeScreen';
 import CitizenGuideScreen from '../screens/CitizenGuideScreen';
-// import ProfileScreen from '../screens/ProfileScreen'; // Substitua pelo seu componente de perfil, se houver
-import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
-import { StyleSheet } from 'react-native';
+import RegisterForms from '../screens/RegisterForms';
+
+import AgentHomeScreen from '../screens/AgentHomeScreen';
 
 const Tab = createBottomTabNavigator();
 
 export default function MainTabs() {
+  const { user } = useAuth();
+  const isAgent = user?.role === 'agente';
+
   const colorScheme = useColorScheme();
   const isDarkMode = colorScheme === 'dark';
   const theme = isDarkMode ? THEMES.dark : THEMES.light;
@@ -39,10 +46,13 @@ export default function MainTabs() {
         tabBarIcon: ({ color, focused }) => {
           let iconName: keyof typeof Ionicons.glyphMap = 'home-outline';
 
-          if (route.name === 'Home') {
-            iconName = focused ? 'sunny' : 'sunny-outline';
+          // Ícones compartilhados ou específicos por rota
+          if (route.name === 'Home' || route.name === 'AgentHome') {
+            iconName = focused ? (isAgent ? 'shield-checkmark' : 'sunny') : (isAgent ? 'shield-checkmark-outline' : 'sunny-outline');
           } else if (route.name === 'Guide') {
             iconName = focused ? 'book' : 'book-outline';
+          } else if (route.name === 'Register') {
+            iconName = focused ? 'pencil' : 'pencil-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -51,21 +61,50 @@ export default function MainTabs() {
         },
       })}
     >
-      <Tab.Screen
-        name="Home"
-        component={CitizenHomeScreen}
-        options={{ tabBarLabel: 'Início' }}
-      />
-      <Tab.Screen
-        name="Guide"
-        component={CitizenGuideScreen}
-        options={{ tabBarLabel: 'Guia do Calor' }}
-      />
-      {/* <Tab.Screen
-        name="Profile"
-        // component={ProfileScreen}
-        options={{ tabBarLabel: 'Perfil' }}
-      /> */}
+      {isAgent ? (
+        // ───────── ABAS DO AGENTE / GESTOR ─────────
+        <>
+          <Tab.Screen
+            name="AgentHome"
+            component={AgentHomeScreen}
+            options={{ tabBarLabel: 'Painel Agente' }}
+          />
+          <Tab.Screen
+            name="Register"
+            component={RegisterForms}
+            options={{ tabBarLabel: 'Nova Ocorrência' }}
+          />
+          <Tab.Screen
+            name="Guide"
+            component={CitizenGuideScreen}
+            options={{ tabBarLabel: 'Protocolos' }}
+          />
+        </>
+      ) : (
+        // ───────── ABAS DO CIDADÃO ─────────
+        <>
+          <Tab.Screen
+            name="Home"
+            component={CitizenHomeScreen}
+            options={{ tabBarLabel: 'Início' }}
+          />
+          <Tab.Screen
+            name="Guide"
+            component={CitizenGuideScreen}
+            options={{ tabBarLabel: 'Guia do Calor' }}
+          />
+          <Tab.Screen
+            name="Register"
+            component={RegisterForms}
+            options={{ tabBarLabel: 'Formulário' }}
+          />
+          <Tab.Screen
+            name="Profile"
+            component={RegisterForms}
+            options={{ tabBarLabel: 'Perfil' }}
+          />
+        </>
+      )}
     </Tab.Navigator>
   );
 }

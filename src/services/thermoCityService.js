@@ -1,4 +1,5 @@
 import axios from "axios";
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 const API_USER_CREATION_URL = process.env.EXPO_PUBLIC_API_JAVA_CADASTRO;
@@ -35,14 +36,15 @@ const storage = {
   }
 };
 
+// ... mantenha o resto igual ...
+
 export const getStoredUserId = async () => {
-  return await storage.getItemAsync(USER_ID_KEY);
+  return await storage.getItem(USER_ID_KEY); // Corrigido de getItemAsync para getItem
 };
 
 export const getStoredToken = async () => {
-  return await storage.getItemAsync(TOKEN_KEY);
+  return await storage.getItem(TOKEN_KEY); // Corrigido de getItemAsync para getItem
 };
-
 
 const getAuthConfig = async () => {
   try {
@@ -67,8 +69,16 @@ const getAuthConfig = async () => {
 // API JAVA SERVICE
 export const registerService = async (nome, email, senha, telefone, cpf, cep) => {
   try {
-    const response = await axios.post(API_USER_CREATION_URL, { nome, email, senha, telefone, cpf, cep});
-    
+    const payload = {
+      nome: nome.trim(),
+      email: email.trim(),
+      senha,
+      telefone: telefone.replace(/\D/g, ''),
+      cpf: cpf.replace(/\D/g, ''),          
+      cep: cep.replace(/\D/g, ''),           
+    };
+
+    const response = await axios.post(API_USER_CREATION_URL, payload);
     const token = response.data.token || response.data.accessToken;
     const userId = response.data.idResponsavel || response.data.id || response.data.userId;
 
@@ -81,7 +91,8 @@ export const registerService = async (nome, email, senha, telefone, cpf, cep) =>
 
     return response.data;
   } catch (error) {
-    console.error('Erro na requisição de cadastro:', error);
+    console.log('Status do erro:', error.response?.status);
+    console.log('Detalhe exato retornado pela API:', JSON.stringify(error.response?.data, null, 2));
     throw new Error(error.response?.data?.message || 'Erro ao realizar o cadastro.');
   }
 };
@@ -90,7 +101,10 @@ export const loginService = async (email, senha) => {
   try {
     const response = await axios.post(API_LOGIN_URL, { email, senha });
 
-    const token = response.data.token || response.data.accessToken || response.data;
+    const token = typeof response.data === 'string' 
+      ? response.data 
+      : (response.data.token || response.data.accessToken);
+      
     const userId = response.data.idResponsavel || response.data.id;
 
     if (token) {
@@ -100,7 +114,7 @@ export const loginService = async (email, senha) => {
       await storage.setItem(USER_ID_KEY, String(userId));
     }
 
-    return response.data;
+    return { token, userData: response.data };
   } catch (error) {
     console.error('Erro na requisição de login:', error);
     throw new Error(error.response?.data?.message || 'Credenciais inválidas ou erro no servidor.');

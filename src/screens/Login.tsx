@@ -14,27 +14,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ThermoLogo from '../components/ThermoLogo';
 import { BRAND_COLORS } from '../theme/thermoTheme';
-import { useNavigation } from '@react-navigation/native';
 import { loginService, registerService } from '../services/thermoCityService';
-
+import { useAuth } from '../context/AuthProvider';
 
 type FieldKey = 'name' | 'email' | 'phone' | 'cpf' | 'cep' | 'password';
 
-const ROLES: {
-  key: 'agente' | 'cidadao';
-  title: string;
-  subtitle: string;
-}[] = [
-  { key: 'agente', title: 'Agente de Saúde', subtitle: 'Busca ativa e alertas' },
-  { key: 'cidadao', title: 'Cidadão', subtitle: 'Clima e refúgios' },
-];
-
-
 export default function LoginScreen() {
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
-  const [role, setRole] = useState<'agente' | 'cidadao'>('agente');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  
+
   // Campos de preenchimento
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -45,6 +33,8 @@ export default function LoginScreen() {
 
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [focused, setFocused] = useState<FieldKey | null>(null);
+
+  const { signInWithToken } = useAuth();
 
   // Máscaras de formatação
   const handleCpfChange = (text: string) => {
@@ -92,8 +82,6 @@ export default function LoginScreen() {
     onBlur: () => setFocused((current) => (current === key ? null : current)),
   });
 
-  const navigate = useNavigation<any>();
-
   const handleSubmit = async () => {
     if (!email || !password) {
       Alert.alert('Atenção', 'Preencha o e-mail e a senha.');
@@ -106,32 +94,36 @@ export default function LoginScreen() {
         // Validação estrita para o cadastro de Cidadão
         if (!name || !telefone || !cpf || !cep) {
           Alert.alert('Atenção', 'Por favor, preencha todos os campos do cadastro de cidadão.');
-          setIsLoading(false);
           return;
         }
 
         if (cpf.length < 14) {
           Alert.alert('Atenção', 'Informe um CPF válido e completo.');
-          setIsLoading(false);
           return;
         }
 
         if (cep.length < 9) {
           Alert.alert('Atenção', 'Informe um CEP completo.');
-          setIsLoading(false);
           return;
         }
-        
+
         // Chamada do service de registro para perfil Cidadão
-        await registerService(name, email, password, telefone, cpf, cep);
+        const data = await registerService(name, email, password, telefone, cpf, cep);
+        const token = typeof data === 'string' ? data : (data.token || data.accessToken);
+
+        if (token) {
+          signInWithToken(token, data);
+        }
+
         Alert.alert('Sucesso', 'Conta de cidadão criada com sucesso!');
       } else {
-        // Chamada do service de login
-        await loginService(email, password);
-      }
+        // Chamada do service de login — a role ("GESTOR" ou "CIDADAO") será lida direto do JWT
+        const { token, userData } = await loginService(email, password);
 
-      // Navegação para a Home após sucesso na autenticação/cadastro
-      navigate.navigate('MainTabs', { screen: 'CitizenHomeScreen' });
+        if (token) {
+          signInWithToken(token, userData);
+        }
+      }
     } catch (error: any) {
       Alert.alert('Erro', error.message || 'Ocorreu um erro na autenticação.');
     } finally {
@@ -189,36 +181,6 @@ export default function LoginScreen() {
                   ? 'Crie sua conta de Cidadão no ThermoCity'
                   : 'Acesse a sua central de monitoramento'}
               </Text>
-
-              {/* Seletor de Perfil visível apenas no Login por regra de negócio */}
-              {!isRegistering && (
-                <>
-                  <Text style={styles.label}>Perfil de acesso</Text>
-                  <View style={styles.roleRow}>
-                    {ROLES.map((item) => {
-                      const selected = role === item.key;
-                      return (
-                        <TouchableOpacity
-                          key={item.key}
-                          style={[styles.roleButton, selected && styles.roleButtonSelected]}
-                          onPress={() => setRole(item.key)}
-                          activeOpacity={0.85}
-                        >
-                          <View style={styles.roleTop}>
-                            <View style={[styles.radio, selected && styles.radioSelected]}>
-                              {selected && <View style={styles.radioDot} />}
-                            </View>
-                          </View>
-                          <Text style={[styles.roleTitle, selected && styles.roleTitleSelected]}>
-                            {item.title}
-                          </Text>
-                          <Text style={styles.roleSubtitle}>{item.subtitle}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </>
-              )}
 
               {/* Campos adicionais exclusivos para Cadastro de Cidadão */}
               {isRegistering && (
@@ -441,59 +403,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#3E525B',
     marginBottom: 8,
-  },
-  roleRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
-  },
-  roleButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#E1E6E9',
-    backgroundColor: '#F8FAFB',
-  },
-  roleButtonSelected: {
-    borderColor: BRAND_COLORS.laranjaSol,
-    backgroundColor: '#FFF6F1',
-  },
-  roleTop: {
-    alignItems: 'flex-end',
-    marginBottom: 6,
-  },
-  radio: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1.5,
-    borderColor: '#C3CDD3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioSelected: {
-    borderColor: BRAND_COLORS.laranjaSol,
-  },
-  radioDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: BRAND_COLORS.laranjaSol,
-  },
-  roleTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#52636B',
-  },
-  roleTitleSelected: {
-    color: BRAND_COLORS.azulEscuro,
-  },
-  roleSubtitle: {
-    fontSize: 12,
-    color: '#6C7D86',
-    marginTop: 3,
   },
   inputGroup: {
     marginBottom: 16,

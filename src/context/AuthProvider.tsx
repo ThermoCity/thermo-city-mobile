@@ -1,26 +1,63 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { getStoredToken, getStoredUserId, logoutService } from '../services/thermoCityService';
+import { getStoredToken, logoutService } from '../services/thermoCityService';
+import { decodeJWT, extractRoleFromToken } from '../utils/jwtUtils';
 
-const AuthContext = createContext<any>(null);
+interface UserSession {
+  email?: string;
+  name?: string;
+  role: 'agente' | 'cidadao';
+}
+
+interface AuthContextType {
+  isAuthenticated: boolean;
+  user: UserSession | null;
+  isLoading: boolean;
+  signInWithToken: (token: string, extraData?: any) => void;
+  logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserSession | null>(null);
+interface UserSession {
+  id?: number;
+  email?: string;
+  name?: string;
+  role: 'agente' | 'cidadao';
+}
 
+const signInWithToken = (token: string, extraData?: any) => {
+  const decoded = decodeJWT(token);
+  const role = extractRoleFromToken(token);
+
+  setUser({
+    id: decoded?.idUsuario,
+    email: decoded?.sub,
+    name: extraData?.nome || (role === 'agente' ? 'Agente de Saúde' : 'Cidadão'),
+    role,
+  });
+  setIsAuthenticated(true);
+};
   useEffect(() => {
     async function loadSession() {
       try {
         const token = await getStoredToken();
-        const userId = await getStoredUserId();
+        if (token) {
+          const decoded = decodeJWT(token);
+          // Verifica se o token não expirou
+          const isExpired = decoded?.exp ? decoded.exp * 1000 < Date.now() : false;
 
-        // if (token && userId) {
-        //   const userData = await getUserService(userId);
-        //   setUser(userData);
-        //   setIsAuthenticated(true);
-        // }
+          if (!isExpired) {
+            signInWithToken(token);
+          } else {
+            await logoutService();
+          }
+        }
       } catch (error) {
-        console.error('Sessão expirada ou erro ao carregar usuário:', error);
+        console.error('Erro ao carregar sessão:', error);
         await logoutService();
       } finally {
         setIsLoading(false);
@@ -36,7 +73,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated, user, setUser, isLoading, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, isLoading, signInWithToken, logout }}>
       {children}
     </AuthContext.Provider>
   );

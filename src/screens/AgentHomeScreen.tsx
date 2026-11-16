@@ -8,22 +8,17 @@ import {
   StatusBar,
   Modal,
   Pressable,
-  Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ThermoLogo from '../components/ThermoLogo';
 import VulnerablePersonCard from '../components/VulnerablePersonCard';
 import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
-import { UserProfile } from './Login';
 import { INITIAL_VULNERABLE_LIST } from '../data/mockData';
 import { VulnerablePerson } from '../interfaces/interfaces';
 import { shadow } from '../theme/shadowTheme';
-
-
-interface AgentHomeScreenProps {
-  user: UserProfile;
-  onLogout: () => void;
-}
+import { useAuth } from '../context/AuthProvider';
+import { logoutService } from '../services/thermoCityService';
 
 type Filter = 'todos' | 'pendente' | 'contatado';
 
@@ -40,8 +35,8 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'contatado', label: 'Concluídos' },
 ];
 
-
-export default function AgentHomeScreen({ user, onLogout }: AgentHomeScreenProps) {
+export default function AgentHomeScreen() {
+  const { user, logout } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [contacts, setContacts] = useState<VulnerablePerson[]>(INITIAL_VULNERABLE_LIST);
   const [selectedPerson, setSelectedPerson] = useState<VulnerablePerson | null>(null);
@@ -51,6 +46,27 @@ export default function AgentHomeScreen({ user, onLogout }: AgentHomeScreenProps
   const currentAlert = HEAT_LEVELS.NC4;
   const softSurface = isDarkMode ? '#242B30' : '#F3F6F8';
   const cardShadow = shadow(isDarkMode);
+
+  const handleLogout = async () => {
+      Alert.alert('Sair da conta', 'Deseja realmente encerrar sua sessão?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sair',
+          style: 'destructive',
+          onPress: async () => {
+      try {
+        await logoutService();
+        if (logout) {
+          await logout();
+        }
+      } catch (error) {
+        Alert.alert('Erro', 'Não foi possível encerrar a sessão.');
+      }
+    }
+    },
+  ]);
+  }
+  
 
   const handleConfirmAction = (actionLabel: string) => {
     if (!selectedPerson) return;
@@ -112,7 +128,7 @@ export default function AgentHomeScreen({ user, onLogout }: AgentHomeScreenProps
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.iconBtn, styles.logoutBtn]}
-                onPress={onLogout}
+                onPress={handleLogout}
                 activeOpacity={0.7}
               >
                 <Text style={styles.logoutText}>Sair</Text>
