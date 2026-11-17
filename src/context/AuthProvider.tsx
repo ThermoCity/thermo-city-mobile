@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { getStoredToken, logoutService } from '../services/thermoCityService';
+import { getStoredToken, logoutService } from '../services/javaThermoCityService';
 import { decodeJWT, extractRoleFromToken } from '../utils/jwtUtils';
 
 interface UserSession {

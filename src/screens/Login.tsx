@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ThermoLogo from '../components/ThermoLogo';
 import { BRAND_COLORS } from '../theme/thermoTheme';
-import { loginService, registerService } from '../services/thermoCityService';
+import { loginService, registerService } from '../services/javaThermoCityService';
 import { useAuth } from '../context/AuthProvider';
 
 type FieldKey = 'name' | 'email' | 'phone' | 'cpf' | 'cep' | 'password';

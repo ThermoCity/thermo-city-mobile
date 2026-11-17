@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ThermoLogo from '../components/ThermoLogo';
 import FamiliarListCard from '../components/FamiliarCard';
 import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
-import { getFamilyMembersService, deleteFamilyMemberService } from '../services/thermoCityService';
+import { getFamilyMembersService, deleteFamilyMemberService } from '../services/javaThermoCityService';
 
 export default function FamilyListScreen() {
   const navigation = useNavigation<any>();

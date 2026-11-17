@@ -14,11 +14,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ThermoLogo from '../components/ThermoLogo';
 import VulnerablePersonCard from '../components/VulnerablePersonCard';
 import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
-import { INITIAL_VULNERABLE_LIST } from '../data/mockData';
+import { INITIAL_VULNERABLE_LIST } from '../data/ncDataDefinition';
 import { VulnerablePerson } from '../interfaces/interfaces';
 import { shadow } from '../theme/shadowTheme';
 import { useAuth } from '../context/AuthProvider';
-import { logoutService } from '../services/thermoCityService';
+import { logoutService } from '../services/javaThermoCityService';
 
 type Filter = 'todos' | 'pendente' | 'contatado';
 

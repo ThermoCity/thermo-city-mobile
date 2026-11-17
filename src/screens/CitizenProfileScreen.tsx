@@ -30,7 +30,7 @@ import {
   getUserService,
   logoutService,
   updateUserService,
-} from '../services/thermoCityService';
+} from '../services/javaThermoCityService';
 
 /* ───────── Tipos e constantes ───────── */
 type HeatCode = keyof typeof HEAT_LEVELS;

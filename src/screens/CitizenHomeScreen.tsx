@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Platform,
   Linking,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Circle, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -16,14 +17,15 @@ import ThermoLogo from '../components/ThermoLogo';
 import SupportPointCard from '../components/SupportPointCard';
 import SupportPointModal from '../components/SupportPointDetailsBtModal';
 import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
-import { SUPPORT_POINTS } from '../data/mockData';
-import { PlaceFilter, SupportPoint } from '../interfaces/interfaces';
+import { SUPPORT_POINTS } from '../data/ncDataDefinition';
+import { HeatAlertResponse, PlaceFilter, SupportPoint } from '../interfaces/interfaces';
 import { shadow } from '../theme/shadowTheme';
 import { getPlaceBadgeConfig } from '../utils/placeUtils';
 import { useAuth } from '../context/AuthProvider';
-import { logoutService } from '../services/thermoCityService';
+import { logoutService } from '../services/javaThermoCityService';
+import { getHeatAlertsService } from '../services/.netThermoCityService';
 
-// AQUI ESTAMOS USANDO UMA LOCALIZAÇÃO FIXA PARA SIMULAR A CIDADE PILOTO DO PROJETO, QUE É PRESIDENTE PRUDENTE[cite: 7]
+
 const USER_LOCATION = {
   latitude: -22.1256,
   longitude: -51.3889,
@@ -37,15 +39,75 @@ const FILTERS: { key: PlaceFilter; label: string }[] = [
   { key: 'ubs', label: 'UBS Próximas' },
 ];
 
+// Mapeia o número do nível (1..5) da API para a configuração visual de HEAT_LEVELS
+const getHeatLevelConfig = (nivel?: number) => {
+  const key = `NC${nivel || 1}` as keyof typeof HEAT_LEVELS;
+  return HEAT_LEVELS[key] || HEAT_LEVELS.NC1;
+};
+
+// Formata "2026-11-17T03:06:31.094+00:00" para "00:06" (horário local)
+const formatUpdateTime = (isoString?: string) => {
+  if (!isoString) return '--:--';
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return '--:--';
+  return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+};
+
+// Formata "2026-11-18" para "18/11"
+const formatShortDate = (dateStr?: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  return `${parts[2]}/${parts[1]}`;
+};
+
 export default function CitizenHomeScreen() {
   const { user, logout } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [filter, setFilter] = useState<PlaceFilter>('todos');
   const [selectedPoint, setSelectedPoint] = useState<SupportPoint | null>(null);
 
+  const [alertData, setAlertData] = useState<HeatAlertResponse | null>(null);
+  const [isLoadingAlert, setIsLoadingAlert] = useState<boolean>(true);
+
   const theme = isDarkMode ? THEMES.dark : THEMES.light;
-  const currentAlert = HEAT_LEVELS.NC4;
   const cardShadow = shadow(isDarkMode);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadHeatAlerts() {
+      try {
+        const data = await getHeatAlertsService();
+        if (isMounted) {
+          setAlertData(data);
+        }
+      } catch (error) {
+        console.error('Falha ao carregar boletim climático:', error);
+      } finally {
+        if (isMounted) {
+          setIsLoadingAlert(false);
+        }
+      }
+    }
+
+    loadHeatAlerts();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const currentAlert = useMemo(
+    () => getHeatLevelConfig(alertData?.hoje?.nivel),
+    [alertData?.hoje?.nivel]
+  );
+
+  const displayTemp = useMemo(() => {
+    if (alertData?.hoje?.icMaxC === undefined || alertData?.hoje?.icMaxC === null) {
+      return '--';
+    }
+    return Math.round(alertData.hoje.icMaxC);
+  }, [alertData?.hoje?.icMaxC]);
 
   const handleLogout = async () => {
     Alert.alert('Sair da conta', 'Deseja realmente encerrar sua sessão?', [
@@ -54,18 +116,18 @@ export default function CitizenHomeScreen() {
         text: 'Sair',
         style: 'destructive',
         onPress: async () => {
-    try {
-      await logoutService();
-      if (logout) {
-        await logout();
-      }
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível encerrar a sessão.');
-    }
-  }
-  },
-]);
-}
+          try {
+            await logoutService();
+            if (logout) {
+              await logout();
+            }
+          } catch (error) {
+            Alert.alert('Erro', 'Não foi possível encerrar a sessão.');
+          }
+        },
+      },
+    ]);
+  };
 
   const visiblePoints = useMemo(() => {
     const list =
@@ -129,52 +191,66 @@ export default function CitizenHomeScreen() {
             </View>
           </View>
 
-          <View style={styles.heroMain}>
-            <View style={styles.tempBlock}>
-              <Text style={styles.tempValue}>38</Text>
-              <Text style={styles.tempUnit}>°C</Text>
+          {isLoadingAlert ? (
+            <View style={styles.heroLoading}>
+              <ActivityIndicator size="large" color={BRAND_COLORS.laranjaSol} />
+              <Text style={styles.heroLoadingText}>Atualizando boletim térmico...</Text>
             </View>
+          ) : (
+            <>
+              <View style={styles.heroMain}>
+                <View style={styles.tempBlock}>
+                  <Text style={styles.tempValue}>{displayTemp}</Text>
+                  <Text style={styles.tempUnit}>°C</Text>
+                </View>
 
-            <View style={styles.heroRight}>
-              <View style={[styles.ncBadge, { backgroundColor: currentAlert.color }]}>
-                <Text style={[styles.ncBadgeText, { color: currentAlert.textColor }]}>
-                  {currentAlert.code} • {currentAlert.label}
-                </Text>
+                <View style={styles.heroRight}>
+                  <View style={[styles.ncBadge, { backgroundColor: currentAlert.color }]}>
+                    <Text style={[styles.ncBadgeText, { color: currentAlert.textColor }]}>
+                      {currentAlert.code} • {alertData?.hoje?.nome || currentAlert.label}
+                    </Text>
+                  </View>
+                  <Text style={styles.feelsLike}>
+                    {alertData?.criterio || 'Monitoramento ativo'}
+                  </Text>
+                  <Text style={styles.humidity}>
+                    Índice de Calor ({alertData?.hoje?.icMaxC?.toFixed(1) ?? '--'}°C) ·{' '}
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.feelsLike}>Sensação de 41°C</Text>
-              <Text style={styles.humidity}>Umidade 24% · UV Extremo</Text>
-            </View>
-          </View>
 
-          <View style={styles.scaleContainer}>
-            {Object.values(HEAT_LEVELS).map((level) => {
-              const isCurrent = level.code === currentAlert.code;
-              return (
-                <View
-                  key={level.code}
-                  style={[
-                    styles.scaleStep,
-                    { backgroundColor: level.color },
-                    isCurrent ? styles.scaleStepActive : styles.scaleStepIdle,
-                  ]}
-                />
-              );
-            })}
-          </View>
-          <View style={styles.scaleLegendRow}>
-            <Text style={styles.scaleLegendText}>NC1 Muito baixo</Text>
-            <Text style={styles.scaleLegendText}>NC3 Moderado</Text>
-            <Text style={styles.scaleLegendText}>NC5 Muito alto</Text>
-          </View>
+              <View style={styles.scaleContainer}>
+                {Object.values(HEAT_LEVELS).map((level) => {
+                  const isCurrent = level.code === currentAlert.code;
+                  return (
+                    <View
+                      key={level.code}
+                      style={[
+                        styles.scaleStep,
+                        { backgroundColor: level.color },
+                        isCurrent ? styles.scaleStepActive : styles.scaleStepIdle,
+                      ]}
+                    />
+                  );
+                })}
+              </View>
+              <View style={styles.scaleLegendRow}>
+                <Text style={styles.scaleLegendText}>NC1 Muito baixo</Text>
+                <Text style={styles.scaleLegendText}>NC3 Moderado</Text>
+                <Text style={styles.scaleLegendText}>NC5 Muito alto</Text>
+              </View>
 
-          <Text style={styles.source}>
-            Alerta oficial Defesa Civil e INMET · atualizado às 14:30
-          </Text>
+              <Text style={styles.source}>
+                Boletim oficial INMET · atualizado às {formatUpdateTime(alertData?.atualizadoEm)}
+                {alertData?.desatualizado ? ' (dados em atualização)' : ''}
+              </Text>
+            </>
+          )}
         </View>
 
         {/* ───────── CONTEÚDO PRINCIPAL ───────── */}
         <View style={styles.content}>
-          {/* Card de Recomendação Preventiva */}
+          {/* Card de Recomendação Preventiva vindo da API */}
           <View
             style={[
               styles.alertCard,
@@ -182,17 +258,57 @@ export default function CitizenHomeScreen() {
               cardShadow,
             ]}
           >
-            <View style={styles.alertAccent} />
+            <View style={[styles.alertAccent, { backgroundColor: currentAlert.color }]} />
             <View style={styles.alertBody}>
               <Text style={[styles.alertTitle, { color: theme.textPrimary }]}>
-                Alerta de calor intenso na sua região
+                Situação atual: {alertData?.hoje?.nome || currentAlert.label} ({currentAlert.code})
               </Text>
               <Text style={[styles.alertDesc, { color: theme.textSecondary }]}>
-                Beba água a cada 30 minutos e evite exposição direta ao sol até as 17h. Caso
-                sinta tontura ou mal-estar, procure um refúgio ou UBS no mapa abaixo.
+                {alertData?.acaoEsperada ||
+                  'Acompanhe os níveis térmicos da sua região e mantenha-se hidratado.'}
               </Text>
             </View>
           </View>
+
+          {/* Previsão dos Próximos Dias (quando retornada pela API) */}
+          {alertData?.proximosDias && alertData.proximosDias.length > 0 && (
+            <View style={styles.forecastSection}>
+              <Text style={[styles.forecastHeaderTitle, { color: theme.textPrimary }]}>
+                Previsão para os próximos dias
+              </Text>
+              <View style={styles.forecastRow}>
+                {alertData.proximosDias.map((day) => {
+                  const dayConfig = getHeatLevelConfig(day.nivel);
+                  return (
+                    <View
+                      key={day.data}
+                      style={[
+                        styles.forecastCard,
+                        { backgroundColor: theme.card, borderColor: theme.cardBorder },
+                        cardShadow,
+                      ]}
+                    >
+                      <Text style={[styles.forecastDate, { color: theme.textSecondary }]}>
+                        {formatShortDate(day.data)}
+                      </Text>
+                      <Text style={[styles.forecastTemp, { color: theme.textPrimary }]}>
+                        {day.icMaxC.toFixed(1)}°C
+                      </Text>
+                      <View
+                        style={[styles.forecastBadge, { backgroundColor: dayConfig.color }]}
+                      >
+                        <Text
+                          style={[styles.forecastBadgeText, { color: dayConfig.textColor }]}
+                        >
+                          NC{day.nivel} · {day.nome}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
 
           {/* Cabeçalho da Seção do Mapa */}
           <View style={styles.sectionHeader}>
@@ -341,6 +457,16 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
+  heroLoading: {
+    paddingVertical: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  heroLoadingText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -419,6 +545,8 @@ const styles = StyleSheet.create({
   heroRight: {
     alignItems: 'flex-end',
     paddingBottom: 10,
+    flex: 1,
+    paddingLeft: 12,
   },
   ncBadge: {
     paddingHorizontal: 14,
@@ -434,11 +562,13 @@ const styles = StyleSheet.create({
     color: BRAND_COLORS.branco,
     fontSize: 14,
     fontWeight: '600',
+    textAlign: 'right',
   },
   humidity: {
     color: 'rgba(255,255,255,0.6)',
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 2,
+    textAlign: 'right',
   },
   scaleContainer: {
     flexDirection: 'row',
@@ -485,7 +615,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   alertAccent: {
     width: 5,
@@ -503,6 +633,46 @@ const styles = StyleSheet.create({
   alertDesc: {
     fontSize: 13,
     lineHeight: 20,
+  },
+
+  /* Previsão Próximos Dias */
+  forecastSection: {
+    marginBottom: 24,
+  },
+  forecastHeaderTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  forecastRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  forecastCard: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 12,
+    alignItems: 'center',
+  },
+  forecastDate: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  forecastTemp: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginVertical: 4,
+  },
+  forecastBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  forecastBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 
   /* Seção Mapa */

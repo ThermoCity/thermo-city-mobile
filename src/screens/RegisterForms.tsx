@@ -21,7 +21,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   registerVulnerablePersonService,
   updateFamilyMemberService, // ⚠️ precisa existir em thermoCityService (ver observação)
-} from '../services/thermoCityService';
+} from '../services/javaThermoCityService';
 
 type FieldKey =
   | 'nome'

@@ -15,7 +15,7 @@ import HeatLevelCard from '../components/HeatLevelCard';
 import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
 import { shadow } from '../theme/shadowTheme';
 import { TipCategory, HeatTip, NCDescription } from '../interfaces/interfaces';
-import { NC_DETAILS } from '../data/mockData';
+import { NC_DETAILS } from '../data/ncDataDefinition';
 
 interface CitizenGuideScreenProps {
   onBack?: () => void;

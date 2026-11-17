@@ -61,3 +61,21 @@ export interface Familiar {
   mobilidadeReduzida: boolean;
   condicaoCronica: boolean;
 }
+
+export interface DayForecast {
+  data: string;
+  nivel: number;
+  nome: string;
+  icMaxC: number;
+  origem: string;
+}
+
+export interface HeatAlertResponse {
+  hoje: DayForecast;
+  proximosDias: DayForecast[];
+  criterio: string;
+  acaoEsperada: string;
+  versaoLimiar: string;
+  atualizadoEm: string;
+  desatualizado: boolean;
+}
