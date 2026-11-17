@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,16 +9,18 @@ import {
   Modal,
   Pressable,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ThermoLogo from '../components/ThermoLogo';
 import VulnerablePersonCard from '../components/VulnerablePersonCard';
 import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
 import { INITIAL_VULNERABLE_LIST } from '../data/ncDataDefinition';
-import { VulnerablePerson } from '../interfaces/interfaces';
+import { HeatAlertResponse, VulnerablePerson } from '../interfaces/interfaces';
 import { shadow } from '../theme/shadowTheme';
 import { useAuth } from '../context/AuthProvider';
 import { logoutService } from '../services/javaThermoCityService';
+import { getHeatAlertsService } from '../services/.netThermoCityService';
 
 type Filter = 'todos' | 'pendente' | 'contatado';
 
@@ -35,6 +37,20 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'contatado', label: 'Concluídos' },
 ];
 
+// Mapeia o número do nível (1..5) da API para a configuração visual de HEAT_LEVELS
+const getHeatLevelConfig = (nivel?: number) => {
+  const key = `NC${nivel || 1}` as keyof typeof HEAT_LEVELS;
+  return HEAT_LEVELS[key] || HEAT_LEVELS.NC1;
+};
+
+// Formata "2026-11-17T03:06:31.094+00:00" para "00:06" (horário local)
+const formatUpdateTime = (isoString?: string) => {
+  if (!isoString) return '--:--';
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return '--:--';
+  return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+};
+
 export default function AgentHomeScreen() {
   const { user, logout } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
@@ -42,31 +58,68 @@ export default function AgentHomeScreen() {
   const [selectedPerson, setSelectedPerson] = useState<VulnerablePerson | null>(null);
   const [filter, setFilter] = useState<Filter>('todos');
 
+  const [alertData, setAlertData] = useState<HeatAlertResponse | null>(null);
+  const [isLoadingAlert, setIsLoadingAlert] = useState<boolean>(true);
+
   const theme = isDarkMode ? THEMES.dark : THEMES.light;
-  const currentAlert = HEAT_LEVELS.NC4;
   const softSurface = isDarkMode ? '#242B30' : '#F3F6F8';
   const cardShadow = shadow(isDarkMode);
 
-  const handleLogout = async () => {
-      Alert.alert('Sair da conta', 'Deseja realmente encerrar sua sessão?', [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Sair',
-          style: 'destructive',
-          onPress: async () => {
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadHeatAlerts() {
       try {
-        await logoutService();
-        if (logout) {
-          await logout();
+        const data = await getHeatAlertsService();
+        if (isMounted) {
+          setAlertData(data);
         }
       } catch (error) {
-        Alert.alert('Erro', 'Não foi possível encerrar a sessão.');
+        console.error('Falha ao carregar boletim climático (Agente):', error);
+      } finally {
+        if (isMounted) {
+          setIsLoadingAlert(false);
+        }
       }
     }
-    },
-  ]);
-  }
-  
+
+    loadHeatAlerts();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const currentAlert = useMemo(
+    () => getHeatLevelConfig(alertData?.hoje?.nivel),
+    [alertData?.hoje?.nivel]
+  );
+
+  const displayTemp = useMemo(() => {
+    if (alertData?.hoje?.icMaxC === undefined || alertData?.hoje?.icMaxC === null) {
+      return '--';
+    }
+    return Math.round(alertData.hoje.icMaxC);
+  }, [alertData?.hoje?.icMaxC]);
+
+  const handleLogout = async () => {
+    Alert.alert('Sair da conta', 'Deseja realmente encerrar sua sessão?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Sair',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await logoutService();
+            if (logout) {
+              await logout();
+            }
+          } catch (error) {
+            Alert.alert('Erro', 'Não foi possível encerrar a sessão.');
+          }
+        },
+      },
+    ]);
+  };
 
   const handleConfirmAction = (actionLabel: string) => {
     if (!selectedPerson) return;
@@ -136,47 +189,61 @@ export default function AgentHomeScreen() {
             </View>
           </View>
 
-          <View style={styles.heroMain}>
-            <View style={styles.tempBlock}>
-              <Text style={styles.tempValue}>38</Text>
-              <Text style={styles.tempUnit}>°C</Text>
+          {isLoadingAlert ? (
+            <View style={styles.heroLoading}>
+              <ActivityIndicator size="large" color={BRAND_COLORS.laranjaSol} />
+              <Text style={styles.heroLoadingText}>Atualizando boletim térmico...</Text>
             </View>
+          ) : (
+            <>
+              <View style={styles.heroMain}>
+                <View style={styles.tempBlock}>
+                  <Text style={styles.tempValue}>{displayTemp}</Text>
+                  <Text style={styles.tempUnit}>°C</Text>
+                </View>
 
-            <View style={styles.heroRight}>
-              <View style={[styles.ncBadge, { backgroundColor: currentAlert.color }]}>
-                <Text style={[styles.ncBadgeText, { color: currentAlert.textColor }]}>
-                  {currentAlert.code} • {currentAlert.label}
-                </Text>
+                <View style={styles.heroRight}>
+                  <View style={[styles.ncBadge, { backgroundColor: currentAlert.color }]}>
+                    <Text style={[styles.ncBadgeText, { color: currentAlert.textColor }]}>
+                      {currentAlert.code} • {alertData?.hoje?.nome || currentAlert.label}
+                    </Text>
+                  </View>
+                  <Text style={styles.feelsLike}>
+                    {alertData?.criterio || 'Monitoramento ativo'}
+                  </Text>
+                  <Text style={styles.humidity}>
+                    Índice de Calor ({alertData?.hoje?.icMaxC?.toFixed(1) ?? '--'}°C) ·{' '}
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.feelsLike}>Sensação de 41°C</Text>
-              <Text style={styles.humidity}>Humidade 24%</Text>
-            </View>
-          </View>
 
-          <View style={styles.scaleContainer}>
-            {Object.values(HEAT_LEVELS).map((level) => {
-              const isCurrent = level.code === currentAlert.code;
-              return (
-                <View
-                  key={level.code}
-                  style={[
-                    styles.scaleStep,
-                    { backgroundColor: level.color },
-                    isCurrent ? styles.scaleStepActive : styles.scaleStepIdle,
-                  ]}
-                />
-              );
-            })}
-          </View>
-          <View style={styles.scaleLegendRow}>
-            <Text style={styles.scaleLegendText}>NC1 Muito baixo</Text>
-            <Text style={styles.scaleLegendText}>NC3 Moderado</Text>
-            <Text style={styles.scaleLegendText}>NC5 Muito alto</Text>
-          </View>
+              <View style={styles.scaleContainer}>
+                {Object.values(HEAT_LEVELS).map((level) => {
+                  const isCurrent = level.code === currentAlert.code;
+                  return (
+                    <View
+                      key={level.code}
+                      style={[
+                        styles.scaleStep,
+                        { backgroundColor: level.color },
+                        isCurrent ? styles.scaleStepActive : styles.scaleStepIdle,
+                      ]}
+                    />
+                  );
+                })}
+              </View>
+              <View style={styles.scaleLegendRow}>
+                <Text style={styles.scaleLegendText}>NC1 Muito baixo</Text>
+                <Text style={styles.scaleLegendText}>NC3 Moderado</Text>
+                <Text style={styles.scaleLegendText}>NC5 Muito alto</Text>
+              </View>
 
-          <Text style={styles.source}>
-            Boletim oficial da Defesa Civil e INMET · atualizado às 14:30
-          </Text>
+              <Text style={styles.source}>
+                Boletim oficial INMET · atualizado às {formatUpdateTime(alertData?.atualizadoEm)}
+                {alertData?.desatualizado ? ' (dados em atualização)' : ''}
+              </Text>
+            </>
+          )}
         </View>
 
         {/* ───────── CONTEÚDO ───────── */}
@@ -189,14 +256,14 @@ export default function AgentHomeScreen() {
               cardShadow,
             ]}
           >
-            <View style={styles.protocolAccent} />
+            <View style={[styles.protocolAccent, { backgroundColor: currentAlert.color }]} />
             <View style={styles.protocolBody}>
               <Text style={[styles.protocolTitle, { color: theme.textPrimary }]}>
-                Protocolo ativo para a equipe local
+                Protocolo ativo ({currentAlert.code} · {alertData?.hoje?.nome || currentAlert.label})
               </Text>
               <Text style={[styles.protocolDesc, { color: theme.textSecondary }]}>
-                Priorizar visita ou contato telefônico a idosos acamados e grávidas nos
-                setores em NC4. Orientar hidratação e encaminhar para refúgios climatizados.
+                {alertData?.acaoEsperada ||
+                  'Priorizar visita ou contato telefônico a idosos acamados e grávidas nos setores em alerta. Orientar hidratação e encaminhar para refúgios climatizados.'}
               </Text>
             </View>
           </View>
@@ -360,6 +427,16 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
+  heroLoading: {
+    paddingVertical: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  heroLoadingText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -438,6 +515,8 @@ const styles = StyleSheet.create({
   heroRight: {
     alignItems: 'flex-end',
     paddingBottom: 10,
+    flex: 1,
+    paddingLeft: 12,
   },
   ncBadge: {
     paddingHorizontal: 14,
@@ -453,11 +532,13 @@ const styles = StyleSheet.create({
     color: BRAND_COLORS.branco,
     fontSize: 14,
     fontWeight: '600',
+    textAlign: 'right',
   },
   humidity: {
     color: 'rgba(255,255,255,0.6)',
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 2,
+    textAlign: 'right',
   },
   scaleContainer: {
     flexDirection: 'row',
