@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_CHATBOT_SAUDE_URL = process.env.EXPO_PUBLIC_API_NET_CHATBOT_SAUDE_IA;
+const API_CHATBOT_SAUDE_URL = process.env.EXPO_PUBLIC_API_JAVA_CHATBOT_SAUDE_IA;
 
 export const sendHealthChatMessageService = async ({ conversationId, message }) => {
   if (!API_CHATBOT_SAUDE_URL) {

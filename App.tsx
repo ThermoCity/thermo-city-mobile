@@ -1,13 +1,13 @@
-import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { GestureHandlerRootView } from 'react-native-gesture-handler'; // 1. Importe o componente raiz
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider, useAuth } from './src/context/AuthProvider';
 import LoginScreen from './src/screens/Login';
 import MainTabs from './src/components/MainTabs';
 import { BRAND_COLORS } from './src/theme/thermoTheme';
 import RegisterForms from './src/screens/RegisterForms';
+import AgentCitizenGuidanceScreen from './src/screens/AgentCitizenGuidanceScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -30,6 +30,8 @@ function AppRoutes() {
         <>  
         <Stack.Screen name="MainTabs" component={MainTabs} />
         <Stack.Screen name="RegisterForms" component={RegisterForms} />
+        <Stack.Screen name="AgentCitizenGuidanceScreen" getComponent={AgentCitizenGuidanceScreen} />
+
         </>
       )}
     </Stack.Navigator>

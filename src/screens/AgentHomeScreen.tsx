@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ThermoLogo from '../components/ThermoLogo';
 import VulnerablePersonCard from '../components/VulnerablePersonCard';
+import VulnerabilityGuidanceScreen from './AgentCitizenGuidanceScreen';
 import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
 import { HeatAlertResponse } from '../interfaces/interfaces';
 import { shadow } from '../theme/shadowTheme';
@@ -56,6 +57,7 @@ export default function AgentHomeScreen() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [contacts, setContacts] = useState<any[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<any | null>(null);
+  const [selectedGuidancePerson, setSelectedGuidancePerson] = useState<any | null>(null);
   const [filter, setFilter] = useState<Filter>('todos');
 
   const [alertData, setAlertData] = useState<HeatAlertResponse | null>(null);
@@ -94,7 +96,6 @@ export default function AgentHomeScreen() {
             ? contactHistoryResult.value.conteudo
             : [];
 
-        // Mapeia o último registro de contato por pessoaId para exibir a observação real
         const latestByPessoaId = new Map<number, any>();
         historyItems.forEach((registro: any) => {
           if (registro.pessoaId && !latestByPessoaId.has(Number(registro.pessoaId))) {
@@ -243,6 +244,16 @@ export default function AgentHomeScreen() {
     ];
   }, [selectedPerson]);
 
+  if (selectedGuidancePerson) {
+    return (
+      <VulnerabilityGuidanceScreen
+        person={selectedGuidancePerson}
+        isDarkMode={isDarkMode}
+        onBack={() => setSelectedGuidancePerson(null)}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.navHeader }]}>
       <StatusBar barStyle="light-content" />
@@ -388,7 +399,14 @@ export default function AgentHomeScreen() {
               </Text>
             </View>
             <View style={[styles.kpiDivider, { backgroundColor: theme.cardBorder }]} />
-            
+            <View style={styles.kpiItem}>
+              <Text style={[styles.kpiValue, { color: theme.textPrimary }]}>
+                {contacts.length}
+              </Text>
+              <Text style={[styles.kpiLabel, { color: theme.textSecondary }]}>
+                Total na{'\n'}lista UBS
+              </Text>
+            </View>
           </View>
 
           {/* Lista */}
@@ -447,6 +465,7 @@ export default function AgentHomeScreen() {
                 theme={theme}
                 isDarkMode={isDarkMode}
                 onActionPress={setSelectedPerson}
+                onPressCard={setSelectedGuidancePerson}
               />
             ))
           )}

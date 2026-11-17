@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   forecastBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 4,
     borderRadius: 999,
   },

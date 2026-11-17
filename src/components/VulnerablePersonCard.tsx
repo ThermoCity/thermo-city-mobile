@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, StyleSheet, Linking } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
 import { shadow } from '../theme/shadowTheme';
@@ -11,6 +11,7 @@ interface VulnerablePersonCardProps {
   theme: AppTheme;
   isDarkMode: boolean;
   onActionPress: (person: any) => void;
+  onPressCard?: (person: any) => void;
 }
 
 const SUCCESS = '#2E9E6B';
@@ -27,7 +28,6 @@ const getInitials = (fullName: string) => {
     .toUpperCase();
 };
 
-// Nome do contato de referência sem o parentesco: "Carlos Souza (filho)" → "Carlos"
 const getFirstName = (fullName?: string) =>
   (fullName || '').split(/[,(]/)[0].trim().split(' ')[0];
 
@@ -36,6 +36,7 @@ export default function VulnerablePersonCard({
   theme,
   isDarkMode,
   onActionPress,
+  onPressCard,
 }: VulnerablePersonCardProps) {
   const levelInfo =
     HEAT_LEVELS[person.heatLevel as keyof typeof HEAT_LEVELS] || HEAT_LEVELS.NC3;
@@ -50,12 +51,13 @@ export default function VulnerablePersonCard({
   const hasReference = !!(person.referenceName || person.referencePhone);
 
   return (
-    <View
+    <Pressable
       style={[
         styles.card,
         { backgroundColor: theme.card, borderColor: theme.cardBorder },
         shadow(isDarkMode),
       ]}
+      onPress={() => onPressCard && onPressCard(person)}
     >
       <View style={[styles.accent, { backgroundColor: levelInfo.color }]} />
 
@@ -107,7 +109,10 @@ export default function VulnerablePersonCard({
             {person.phone ? (
               <TouchableOpacity
                 activeOpacity={0.75}
-                onPress={() => handleCall(person.phone)}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleCall(person.phone);
+                }}
                 accessibilityLabel={`Ligar para o cidadão ${person.phone}`}
                 style={[styles.contactBtn, { borderColor: theme.cardBorder }]}
               >
@@ -122,7 +127,10 @@ export default function VulnerablePersonCard({
               <TouchableOpacity
                 activeOpacity={0.75}
                 disabled={!person.referencePhone}
-                onPress={() => handleCall(person.referencePhone)}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleCall(person.referencePhone);
+                }}
                 accessibilityLabel={`Ligar para ${person.referenceName || 'contato de referência'}`}
                 style={[
                   styles.contactBtn,
@@ -160,7 +168,10 @@ export default function VulnerablePersonCard({
               styles.actionBtn,
               isDone && { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.cardBorder },
             ]}
-            onPress={() => onActionPress(person)}
+            onPress={(e) => {
+              e.stopPropagation();
+              onActionPress(person);
+            }}
             activeOpacity={0.85}
           >
             <Text style={[styles.actionBtnText, isDone && { color: theme.textSecondary }]}>
@@ -169,7 +180,7 @@ export default function VulnerablePersonCard({
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -203,9 +214,6 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   name: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
-  age: { fontSize: 12, fontWeight: '500' },
-  sectorRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
-  sector: { flex: 1, fontSize: 12 },
   levelChip: {
     alignItems: 'center',
     paddingHorizontal: 10,

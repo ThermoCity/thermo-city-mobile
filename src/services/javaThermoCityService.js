@@ -21,6 +21,9 @@ const API_LISTA_AGENTE_URL = process.env.EXPO_PUBLIC_API_JAVA_LISTA_AGENTE;
 // POST e GET NA LISTA DE CONTATOS DO AGENTE DE SAÚDE
 const API_STATUS_CONTATO_AGENTE_URL = process.env.EXPO_PUBLIC_API_JAVA_LISTA_STATUS_CONTATO_AGENTE;
 
+// API DE ORIENTAÇÃO DE CUIDADOS PARA PESSOAS VULNERAVEIS COM IA
+const API_ORIENTACAO_VULNERAVEL_URL = process.env.EXPO_PUBLIC_API_JAVA_ASSISTENTE_IA;
+
 const TOKEN_KEY = 'user_token';
 const USER_ID_KEY = 'user_id';
 
@@ -440,6 +443,51 @@ export const getAgentContactStatusByIdService = async (id) => {
     console.error(`Erro ao buscar contato ID ${id}:`, error.response?.data || error.message);
     throw new Error(
       error.response?.data?.message || 'Não foi possível carregar os detalhes do contato.'
+    );
+  }
+};
+
+// API DE ORIENTAÇÃO DE CUIDADOS PARA PESSOAS VULNERAVEIS COM IA
+export const getVulnerablePersonGuidanceService = async (pessoaId) => {
+  if (!API_ORIENTACAO_VULNERAVEL_URL) {
+    throw new Error('Variável EXPO_PUBLIC_API_JAVA_ORIENTACAO_VULNERAVEL não definida no .env');
+  }
+
+  if (!pessoaId) {
+    throw new Error('ID da pessoa vulnerável não fornecido.');
+  }
+
+  try {
+    const token = await getStoredToken();
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    };
+
+    const url = `${API_ORIENTACAO_VULNERAVEL_URL.replace(/\/$/, '')}/${pessoaId}/orientacao`;
+    const response = await axios.get(url, config);
+    const data = response.data || {};
+
+    return {
+      pessoaId: data.pessoaId,
+      data: data.data,
+      nivelCalor: data.nivelCalor,
+      nivelNome: data.nivelNome,
+      roteiro: Array.isArray(data.roteiro) ? data.roteiro : [],
+      sinaisAlerta: Array.isArray(data.sinaisAlerta) ? data.sinaisAlerta : [],
+      refugio: data.refugio || null,
+      fontes: Array.isArray(data.fontes) ? data.fontes : [],
+      aviso: data.aviso || '',
+      geradoEm: data.geradoEm,
+    };
+  } catch (error) {
+    console.error('Erro ao buscar orientação da pessoa vulnerável:', error.response?.data || error.message);
+    throw new Error(
+      error.response?.data?.message ||
+        'Não foi possível carregar as orientações baseadas em IA para este cidadão.'
     );
   }
 };
