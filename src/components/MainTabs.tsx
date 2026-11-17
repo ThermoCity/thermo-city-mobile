@@ -12,6 +12,7 @@ import RegisterForms from '../screens/RegisterForms';
 import AgentHomeScreen from '../screens/AgentHomeScreen';
 import CitizenFamiliarListScreen from '../screens/CitizenFamiliarListScreen';
 import CitizenProfileScreen from '../screens/CitizenProfileScreen';
+import HealthChatScreen from '../screens/AgentHealthChatScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -56,8 +57,9 @@ export default function MainTabs() {
             iconName = focused ? 'pencil' : 'pencil-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
-          }
-          
+          } else if (route.name === 'Chat') {
+            iconName = focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
+          } 
 
           return <Ionicons name={iconName} size={22} color={color} />;
         },
@@ -72,9 +74,9 @@ export default function MainTabs() {
             options={{ tabBarLabel: 'Painel Agente' }}
           />
           <Tab.Screen
-            name="Guide"
-            component={CitizenGuideScreen}
-            options={{ tabBarLabel: 'Protocolos' }}
+            name="Chat"
+            component={HealthChatScreen}
+            options={{ tabBarLabel: 'ThermoCity AI Chat' }}
           />
         </>
       ) : (
