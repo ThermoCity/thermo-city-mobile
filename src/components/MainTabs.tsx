@@ -11,6 +11,7 @@ import RegisterForms from '../screens/RegisterForms';
 
 import AgentHomeScreen from '../screens/AgentHomeScreen';
 import CitizenFamiliarListScreen from '../screens/CitizenFamiliarListScreen';
+import CitizenProfileScreen from '../screens/CitizenProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -45,9 +46,8 @@ export default function MainTabs() {
           marginTop: 2,
         },
         tabBarIcon: ({ color, focused }) => {
-          let iconName: keyof typeof Ionicons.glyphMap = 'home-outline';
+          let iconName: keyof typeof Ionicons.glyphMap = 'home';
 
-          // Ícones compartilhados ou específicos por rota
           if (route.name === 'Home' || route.name === 'AgentHome') {
             iconName = focused ? (isAgent ? 'shield-checkmark' : 'sunny') : (isAgent ? 'shield-checkmark-outline' : 'sunny-outline');
           } else if (route.name === 'Guide') {
@@ -57,6 +57,7 @@ export default function MainTabs() {
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
+          
 
           return <Ionicons name={iconName} size={22} color={color} />;
         },
@@ -87,12 +88,17 @@ export default function MainTabs() {
           <Tab.Screen
             name="Guide"
             component={CitizenGuideScreen}
-            options={{ tabBarLabel: 'Guia do Calor' }}
+            options={{ tabBarLabel: 'Meu Guia' }}
           />
           <Tab.Screen
             name="FamiliarList"
             component={CitizenFamiliarListScreen}
             options={{ tabBarLabel: 'Familiares' }}
+          />
+          <Tab.Screen
+            name="Profile"
+            component={CitizenProfileScreen}
+            options={{ tabBarLabel: 'Meu Perfil' }}
           />
         </>
       )}

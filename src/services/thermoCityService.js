@@ -7,6 +7,8 @@ const API_LOGIN_URL = process.env.EXPO_PUBLIC_API_JAVA_LOGIN;
 
 const API_CRUD_FAMILIARES_URL = process.env.EXPO_PUBLIC_API_NET_CRUD_FAMILIARES_VULNERAVEIS;
 
+const API_USER_URL = process.env.EXPO_PUBLIC_API_USER;
+
 const TOKEN_KEY = 'user_token';
 const USER_ID_KEY = 'user_id';
 
@@ -130,7 +132,7 @@ export const logoutService = async () => {
   }
 };
 
-// API .NET SERVICE
+// API PARA GESTAO DOS FAMILIARES
 export const registerVulnerablePersonService = async (familiarData) => {
   try {
     const config = await getAuthConfig();
@@ -217,5 +219,28 @@ export const deleteFamilyMemberService = async (id) => {
   } catch (error) {
     console.log('Erro ao deletar familiar:', error.response?.data);
     throw new Error(error.response?.data?.message || 'Não foi possível remover o familiar.');
+  }
+};
+
+export const getUserService = async () => {
+  try {
+    const config = await getAuthConfig();
+    const response = await axios.get(API_USER_URL, config);
+    console.log(response.data.nome);
+    return response.data;
+  } catch (error) {
+    console.error('Erro no getUserService:', error);
+    throw new Error(error.response?.data?.message || 'Erro ao buscar dados do usuário.');
+  }
+};
+
+export const updateUserService = async (userData) => {
+  try {
+    const config = await getAuthConfig();
+    const response = await axios.put(API_USER_URL, userData, config);
+    return response.data;
+  } catch (error) {
+    console.error('Erro no updateUserService:', error);
+    throw new Error(error.response?.data?.message || 'Erro ao atualizar os dados do usuário.');
   }
 };

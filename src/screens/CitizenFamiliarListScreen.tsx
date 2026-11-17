@@ -211,8 +211,8 @@ const styles = StyleSheet.create({
   },
   title: {
     color: BRAND_COLORS.branco,
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     letterSpacing: -0.2,
   },
   subtitle: {
