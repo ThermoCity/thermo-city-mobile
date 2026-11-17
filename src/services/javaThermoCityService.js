@@ -18,6 +18,9 @@ const API_BASE_SERVICOS_TERRITORIAL = process.env.EXPO_PUBLIC_API_JAVA_BASE_SERV
 // GET NA LISTA DE PESSOAS VULNERAVEIS PARA AGENTE CONTATAR
 const API_LISTA_AGENTE_URL = process.env.EXPO_PUBLIC_API_JAVA_LISTA_AGENTE;
 
+// POST e GET NA LISTA DE CONTATOS DO AGENTE DE SAÚDE
+const API_STATUS_CONTATO_AGENTE_URL = process.env.EXPO_PUBLIC_API_JAVA_LISTA_STATUS_CONTATO_AGENTE;
+
 const TOKEN_KEY = 'user_token';
 const USER_ID_KEY = 'user_id';
 
@@ -341,6 +344,7 @@ export const getAgentPriorityListService = async () => {
 
       return {
         id: String(item.id),
+        pessoaId: pessoa.id,
         posicao: item.posicao,
         pontuacao: item.pontuacao,
         name: pessoa.nome || 'Cidadão não identificado',
@@ -372,5 +376,70 @@ export const getAgentPriorityListService = async () => {
   } catch (error) {
     console.error('Erro ao buscar lista prioritária do agente:', error.response?.data || error.message);
     throw new Error(error.response?.data?.message || 'Não foi possível carregar a lista prioritária.');
+  }
+};
+
+// API DE REGISTRO E LISTAGEM DE CONTATOS FEITOS PELO AGENTE DE SAÚDE
+export const registerAgentContactStatusService = async ({
+  pessoaId,
+  resultado = 'CONTATADO_BEM',
+  observacao,
+}) => {
+  if (!API_STATUS_CONTATO_AGENTE_URL) {
+    throw new Error('Variável EXPO_PUBLIC_API_JAVA_LISTA_STATUS_CONTATO_AGENTE não definida no .env');
+  }
+
+  try {
+    const config = await getAuthConfig();
+    const payload = {
+      pessoaId: Number(pessoaId),
+      resultado,
+      observacao: String(observacao || '').trim(),
+    };
+
+    const response = await axios.post(API_STATUS_CONTATO_AGENTE_URL, payload, config);
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao registrar status de contato:', error.response?.data || error.message);
+    throw new Error(
+      error.response?.data?.message || 'Não foi possível registrar o contato no servidor.'
+    );
+  }
+};
+
+export const getAgentContactStatusListService = async (pagina = 0, tamanho = 50) => {
+  if (!API_STATUS_CONTATO_AGENTE_URL) {
+    throw new Error('Variável EXPO_PUBLIC_API_JAVA_LISTA_STATUS_CONTATO_AGENTE não definida no .env');
+  }
+
+  try {
+    const config = await getAuthConfig();
+    const response = await axios.get(API_STATUS_CONTATO_AGENTE_URL, {
+      ...config,
+      params: { pagina, tamanho },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao listar histórico de contatos:', error.response?.data || error.message);
+    throw new Error(
+      error.response?.data?.message || 'Não foi possível carregar o histórico de contatos.'
+    );
+  }
+};
+
+export const getAgentContactStatusByIdService = async (id) => {
+  if (!API_STATUS_CONTATO_AGENTE_URL) {
+    throw new Error('Variável EXPO_PUBLIC_API_JAVA_LISTA_STATUS_CONTATO_AGENTE não definida no .env');
+  }
+
+  try {
+    const config = await getAuthConfig();
+    const response = await axios.get(`${API_STATUS_CONTATO_AGENTE_URL}/${id}`, config);
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao buscar contato ID ${id}:`, error.response?.data || error.message);
+    throw new Error(
+      error.response?.data?.message || 'Não foi possível carregar os detalhes do contato.'
+    );
   }
 };

@@ -21,10 +21,17 @@ import { useAuth } from '../context/AuthProvider';
 import {
   logoutService,
   getAgentPriorityListService,
+  registerAgentContactStatusService,
+  getAgentContactStatusListService,
 } from '../services/javaThermoCityService';
 import { getHeatAlertsService } from '../services/.netThermoCityService';
 
 type Filter = 'todos' | 'pendente' | 'contatado';
+
+interface ActionOption {
+  label: string;
+  resultado: 'CONTATADO_BEM' | 'PRECISA_AJUDA';
+}
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'todos', label: 'Todos' },
@@ -54,6 +61,7 @@ export default function AgentHomeScreen() {
   const [alertData, setAlertData] = useState<HeatAlertResponse | null>(null);
   const [isLoadingAlert, setIsLoadingAlert] = useState<boolean>(true);
   const [isLoadingContacts, setIsLoadingContacts] = useState<boolean>(true);
+  const [isSubmittingAction, setIsSubmittingAction] = useState<boolean>(false);
 
   const theme = isDarkMode ? THEMES.dark : THEMES.light;
   const softSurface = isDarkMode ? '#242B30' : '#F3F6F8';
@@ -63,9 +71,10 @@ export default function AgentHomeScreen() {
     let isMounted = true;
 
     async function loadAgentDashboard() {
-      const [alertsResult, priorityListResult] = await Promise.allSettled([
+      const [alertsResult, priorityListResult, contactHistoryResult] = await Promise.allSettled([
         getHeatAlertsService(),
         getAgentPriorityListService(),
+        getAgentContactStatusListService(0, 100),
       ]);
 
       if (!isMounted) return;
@@ -78,7 +87,35 @@ export default function AgentHomeScreen() {
       setIsLoadingAlert(false);
 
       if (priorityListResult.status === 'fulfilled') {
-        setContacts(priorityListResult.value.contacts || []);
+        const baseContacts = priorityListResult.value.contacts || [];
+        const historyItems =
+          contactHistoryResult.status === 'fulfilled' &&
+          Array.isArray(contactHistoryResult.value?.conteudo)
+            ? contactHistoryResult.value.conteudo
+            : [];
+
+        // Mapeia o último registro de contato por pessoaId para exibir a observação real
+        const latestByPessoaId = new Map<number, any>();
+        historyItems.forEach((registro: any) => {
+          if (registro.pessoaId && !latestByPessoaId.has(Number(registro.pessoaId))) {
+            latestByPessoaId.set(Number(registro.pessoaId), registro);
+          }
+        });
+
+        const mergedContacts = baseContacts.map((person: any) => {
+          const registro = latestByPessoaId.get(Number(person.pessoaId));
+          if (registro) {
+            return {
+              ...person,
+              status: 'contatado',
+              lastAction: registro.observacao || registro.resultadoDescricao || person.lastAction,
+              resultado: registro.resultado,
+            };
+          }
+          return person;
+        });
+
+        setContacts(mergedContacts);
       } else {
         console.error('Falha ao carregar lista prioritária:', priorityListResult.reason);
       }
@@ -123,16 +160,43 @@ export default function AgentHomeScreen() {
     ]);
   };
 
-  const handleConfirmAction = (actionLabel: string) => {
-    if (!selectedPerson) return;
-    setContacts((prev) =>
-      prev.map((item) =>
-        item.id === selectedPerson.id
-          ? { ...item, status: 'contatado', lastAction: actionLabel }
-          : item
-      )
-    );
-    setSelectedPerson(null);
+  const handleConfirmAction = async (option: ActionOption) => {
+    if (!selectedPerson || isSubmittingAction) return;
+
+    if (!selectedPerson.pessoaId) {
+      Alert.alert('Erro', 'Identificador do cidadão (pessoaId) não encontrado.');
+      return;
+    }
+
+    setIsSubmittingAction(true);
+    try {
+      const savedRecord = await registerAgentContactStatusService({
+        pessoaId: selectedPerson.pessoaId,
+        resultado: option.resultado,
+        observacao: option.label,
+      });
+
+      setContacts((prev) =>
+        prev.map((item) =>
+          item.id === selectedPerson.id
+            ? {
+                ...item,
+                status: 'contatado',
+                lastAction: savedRecord?.observacao || option.label,
+                resultado: savedRecord?.resultado || option.resultado,
+              }
+            : item
+        )
+      );
+      setSelectedPerson(null);
+    } catch (error: any) {
+      Alert.alert(
+        'Erro ao registrar contato',
+        error?.message || 'Não foi possível salvar o status do atendimento.'
+      );
+    } finally {
+      setIsSubmittingAction(false);
+    }
   };
 
   const pendingCount = useMemo(
@@ -154,16 +218,28 @@ export default function AgentHomeScreen() {
     });
   }, [contacts, filter]);
 
-  const dynamicActionOptions = useMemo(() => {
-    const shelterOption = selectedPerson?.nearestShelter
+  const dynamicActionOptions: ActionOption[] = useMemo(() => {
+    const shelterLabel = selectedPerson?.nearestShelter
       ? `Encaminhado para ${selectedPerson.nearestShelter}`
       : 'Encaminhado ao refúgio climatizado mais próximo';
 
     return [
-      'Ligação de monitoramento realizada',
-      'Visita domiciliária agendada',
-      shelterOption,
-      'Acionada equipe de remoção médica',
+      {
+        label: 'Ligação de monitoramento realizada - cidadão bem e hidratado',
+        resultado: 'CONTATADO_BEM',
+      },
+      {
+        label: 'Visita domiciliária já agendada',
+        resultado: 'CONTATADO_BEM',
+      },
+      {
+        label: shelterLabel,
+        resultado: 'PRECISA_AJUDA',
+      },
+      {
+        label: 'Acionada equipe de remoção médica / UBS',
+        resultado: 'PRECISA_AJUDA',
+      },
     ];
   }, [selectedPerson]);
 
@@ -232,7 +308,7 @@ export default function AgentHomeScreen() {
                     {alertData?.criterio || 'Monitoramento ativo'}
                   </Text>
                   <Text style={styles.humidity}>
-                    Índice de Calor ({alertData?.hoje?.icMaxC?.toFixed(1) ?? '--'}°C) ·{' '}
+                    Índice de Calor ({alertData?.hoje?.icMaxC?.toFixed(1) ?? '--'}°C)
                   </Text>
                 </View>
               </View>
@@ -312,14 +388,7 @@ export default function AgentHomeScreen() {
               </Text>
             </View>
             <View style={[styles.kpiDivider, { backgroundColor: theme.cardBorder }]} />
-            <View style={styles.kpiItem}>
-              <Text style={[styles.kpiValue, { color: theme.textPrimary }]}>
-                {contacts.length}
-              </Text>
-              <Text style={[styles.kpiLabel, { color: theme.textSecondary }]}>
-                Total na{'\n'}lista UBS
-              </Text>
-            </View>
+            
           </View>
 
           {/* Lista */}
@@ -389,9 +458,12 @@ export default function AgentHomeScreen() {
         visible={Boolean(selectedPerson)}
         transparent
         animationType="slide"
-        onRequestClose={() => setSelectedPerson(null)}
+        onRequestClose={() => !isSubmittingAction && setSelectedPerson(null)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setSelectedPerson(null)}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => !isSubmittingAction && setSelectedPerson(null)}
+        >
           <Pressable
             style={[styles.modalCard, { backgroundColor: theme.card }]}
             onPress={() => {}}
@@ -405,22 +477,32 @@ export default function AgentHomeScreen() {
               {selectedPerson?.name}
             </Text>
 
-            {dynamicActionOptions.map((option) => (
-              <TouchableOpacity
-                key={option}
-                style={[styles.modalOption, { backgroundColor: softSurface }]}
-                onPress={() => handleConfirmAction(option)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.modalOptionText, { color: theme.textPrimary }]}>
-                  {option}
+            {isSubmittingAction ? (
+              <View style={styles.submittingBox}>
+                <ActivityIndicator size="small" color={BRAND_COLORS.laranjaSol} />
+                <Text style={[styles.modalSub, { color: theme.textSecondary, marginBottom: 0 }]}>
+                  Registrando atendimento...
                 </Text>
-                <Text style={[styles.modalChevron, { color: theme.textSecondary }]}>›</Text>
-              </TouchableOpacity>
-            ))}
+              </View>
+            ) : (
+              dynamicActionOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.label}
+                  style={[styles.modalOption, { backgroundColor: softSurface }]}
+                  onPress={() => handleConfirmAction(option)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.modalOptionText, { color: theme.textPrimary }]}>
+                    {option.label}
+                  </Text>
+                  <Text style={[styles.modalChevron, { color: theme.textSecondary }]}>›</Text>
+                </TouchableOpacity>
+              ))
+            )}
 
             <TouchableOpacity
               style={styles.modalCancel}
+              disabled={isSubmittingAction}
               onPress={() => setSelectedPerson(null)}
             >
               <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>
@@ -670,10 +752,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.3,
   },
-  listSubtitle: {
-    fontSize: 13,
-    marginTop: 3,
-  },
   filterRow: {
     flexDirection: 'row',
     gap: 8,
@@ -736,6 +814,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
     marginBottom: 18,
+  },
+  submittingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 32,
   },
   modalOption: {
     flexDirection: 'row',
