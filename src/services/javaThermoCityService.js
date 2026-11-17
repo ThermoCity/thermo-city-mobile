@@ -5,9 +5,11 @@ import * as SecureStore from 'expo-secure-store';
 const API_USER_CREATION_URL = process.env.EXPO_PUBLIC_API_JAVA_CADASTRO;
 const API_LOGIN_URL = process.env.EXPO_PUBLIC_API_JAVA_LOGIN;
 
-const API_CRUD_FAMILIARES_URL = process.env.EXPO_PUBLIC_API_NET_CRUD_FAMILIARES_VULNERAVEIS;
+const API_BASE_SERVICOS_TERRITORIAL = process.env.EXPO_PUBLIC_API_JAVA_BASE_SERVICOS_TERRITORIAL;
 
-const API_USER_URL = process.env.EXPO_PUBLIC_API_USER;
+const API_CRUD_FAMILIARES_URL = process.env.EXPO_PUBLIC_API_JAVA_CRUD_FAMILIARES_VULNERAVEIS;
+
+const API_USER_URL = process.env.EXPO_PUBLIC_API_JAVA_USER;
 
 const TOKEN_KEY = 'user_token';
 const USER_ID_KEY = 'user_id';
@@ -222,6 +224,9 @@ export const deleteFamilyMemberService = async (id) => {
   }
 };
 
+
+// SERVICE PARA UPDATE DO USUARIO
+
 export const getUserService = async () => {
   try {
     const config = await getAuthConfig();
@@ -242,5 +247,62 @@ export const updateUserService = async (userData) => {
   } catch (error) {
     console.error('Erro no updateUserService:', error);
     throw new Error(error.response?.data?.message || 'Erro ao atualizar os dados do usuário.');
+  }
+};
+
+// SERVICE DA API TERRITORIAL DE JAVA
+
+// Helper para calcular distância em km (Haversine) caso distanciaMetros venha null
+const calculateDistanceKm = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Number((R * c).toFixed(2));
+};
+
+// API TERRITORIAL (UBS E REFÚGIOS)
+export const getTerritorialServices = async (userLat = -22.1256, userLon = -51.3889) => {
+  if (!API_BASE_SERVICOS_TERRITORIAL) {
+    throw new Error('Variável EXPO_PUBLIC_API_JAVA_BASE_SERVICOS_TERRITORIAL não definida no .env');
+  }
+
+  try {
+    const config = await getAuthConfig();
+    const response = await axios.get(API_BASE_SERVICOS_TERRITORIAL, config);
+    const rawList = Array.isArray(response.data) ? response.data : [];
+
+    // Normaliza o JSON da API para o formato SupportPoint usado no mapa e nos cards
+    return rawList
+      .filter((item) => item.lat !== null && item.lon !== null)
+      .map((item) => {
+        const isUbs = String(item.tipo || '').toUpperCase().includes('UBS');
+        const distanceKm =
+          item.distanciaMetros !== null && item.distanciaMetros !== undefined
+            ? Number((item.distanciaMetros / 1000).toFixed(2))
+            : calculateDistanceKm(userLat, userLon, Number(item.lat), Number(item.lon));
+
+        return {
+          id: String(item.id),
+          name: item.nome || 'Ponto de Apoio',
+          type: isUbs ? 'ubs' : 'refugio',
+          address: item.bairro ? `${item.endereco} - ${item.bairro}` : item.endereco || 'Endereço não informado',
+          latitude: Number(item.lat),
+          longitude: Number(item.lon),
+          distanceKm,
+          status: item.fonte ? `Fonte: ${item.fonte}` : 'Ativo',
+          hours: isUbs ? 'Seg a Sex · 07h às 17h' : 'Consulte disponibilidade local',
+          features: item.categoria || (isUbs ? 'Atendimento básico de saúde e hidratação' : 'Espaço sugerido para abrigo térmico'),
+        };
+      });
+  } catch (error) {
+    console.error('Erro ao buscar pontos territoriais:', error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || 'Erro ao carregar pontos de apoio no mapa.');
   }
 };

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   StatusBar,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ThermoLogo from '../components/ThermoLogo';
@@ -14,8 +15,9 @@ import HeatTipCard from '../components/HeatTipCard';
 import HeatLevelCard from '../components/HeatLevelCard';
 import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
 import { shadow } from '../theme/shadowTheme';
-import { TipCategory, HeatTip, NCDescription } from '../interfaces/interfaces';
+import { TipCategory, HeatTip, HeatAlertResponse } from '../interfaces/interfaces';
 import { NC_DETAILS } from '../data/ncDataDefinition';
+import { getHeatAlertsService } from '../services/.netThermoCityService';
 
 interface CitizenGuideScreenProps {
   onBack?: () => void;
@@ -78,7 +80,11 @@ const HEAT_TIPS: HeatTip[] = [
   },
 ];
 
-
+// Mapeia o número do nível (1..5) da API .NET para o objeto visual de HEAT_LEVELS
+const getHeatLevelConfig = (nivel?: number) => {
+  const key = `NC${nivel || 1}` as keyof typeof HEAT_LEVELS;
+  return HEAT_LEVELS[key] || HEAT_LEVELS.NC1;
+};
 
 export default function CitizenGuideScreen({
   onBack,
@@ -87,6 +93,8 @@ export default function CitizenGuideScreen({
 }: CitizenGuideScreenProps) {
   const [internalDarkMode, setInternalDarkMode] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<TipCategory>('todas');
+  const [alertData, setAlertData] = useState<HeatAlertResponse | null>(null);
+  const [isLoadingAlert, setIsLoadingAlert] = useState<boolean>(true);
 
   const isDarkMode = externalDarkMode !== undefined ? externalDarkMode : internalDarkMode;
   const toggleTheme = () => {
@@ -97,9 +105,35 @@ export default function CitizenGuideScreen({
     }
   };
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadHeatAlerts() {
+      try {
+        const data = await getHeatAlertsService();
+        if (isMounted) {
+          setAlertData(data);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar cenário térmico no Guia:', error);
+      } finally {
+        if (isMounted) {
+          setIsLoadingAlert(false);
+        }
+      }
+    }
+
+    loadHeatAlerts();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const theme = isDarkMode ? THEMES.dark : THEMES.light;
-  // AQUI TA MOCK, AJUSTAR DEPOIS
-  const currentAlert = HEAT_LEVELS.NC4;
+  const currentAlert = useMemo(
+    () => getHeatLevelConfig(alertData?.hoje?.nivel),
+    [alertData?.hoje?.nivel]
+  );
   const cardShadow = shadow(isDarkMode);
 
   const visibleTips = useMemo(() => {
@@ -110,6 +144,11 @@ export default function CitizenGuideScreen({
   const handleEmergencyCall = (phone: string) => {
     Linking.openURL(`tel:${phone}`);
   };
+
+  const formattedTemp =
+    alertData?.hoje?.icMaxC !== undefined && alertData?.hoje?.icMaxC !== null
+      ? `${alertData.hoje.icMaxC.toFixed(1).replace('.', ',')}°C`
+      : null;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.navHeader }]}>
@@ -159,11 +198,21 @@ export default function CitizenGuideScreen({
           </View>
 
           <View style={styles.heroIntro}>
-            <View style={[styles.ncBadge, { backgroundColor: currentAlert.color }]}>
-              <Text style={[styles.ncBadgeText, { color: currentAlert.textColor }]}>
-                Cenário atual: {currentAlert.code} • {currentAlert.label}
-              </Text>
-            </View>
+            {isLoadingAlert ? (
+              <View style={styles.badgeLoadingRow}>
+                <ActivityIndicator size="small" color={BRAND_COLORS.laranjaSol} />
+                <Text style={styles.badgeLoadingText}>Consultando cenário térmico...</Text>
+              </View>
+            ) : (
+              <View style={[styles.ncBadge, { backgroundColor: currentAlert.color }]}>
+                <Text style={[styles.ncBadgeText, { color: currentAlert.textColor }]}>
+                  Cenário atual: {currentAlert.code} •{' '}
+                  {alertData?.hoje?.nome || currentAlert.label}
+                  {formattedTemp ? ` (${formattedTemp})` : ''}
+                </Text>
+              </View>
+            )}
+
             <Text style={styles.heroTitle}>Como se proteger durante ondas de calor</Text>
             <Text style={styles.heroSubtitle}>
               Orientações oficiais de saúde pública e entenda como funciona a escala de
@@ -174,7 +223,7 @@ export default function CitizenGuideScreen({
 
         {/* ───────── CONTEÚDO PRINCIPAL ───────── */}
         <View style={styles.content}>
-          {/* Card Destaque: Regra de Ouro de Hidratação */}
+          {/* Card Destaque: Orientação baseada no nível real da API */}
           <View
             style={[
               styles.highlightCard,
@@ -182,14 +231,21 @@ export default function CitizenGuideScreen({
               cardShadow,
             ]}
           >
-            <View style={styles.highlightAccent} />
+            <View
+              style={[
+                styles.highlightAccent,
+                { backgroundColor: isLoadingAlert ? '#00A896' : currentAlert.color },
+              ]}
+            />
             <View style={styles.highlightBody}>
               <Text style={[styles.highlightTitle, { color: theme.textPrimary }]}>
-                Meta diária recomendada em alerta {currentAlert.code}
+                Recomendação para o cenário {currentAlert.code}
+                {formattedTemp ? ` · IC Máx. ${formattedTemp}` : ''}
               </Text>
               <Text style={[styles.highlightDesc, { color: theme.textSecondary }]}>
-                Consuma no mínimo 2,5 a 3 litros de água ao longo do dia (cerca de 1 copo a
-                cada 30 minutos em períodos mais quentes).
+                {alertData?.acaoEsperada
+                  ? `${alertData.acaoEsperada} Mantenha a hidratação regular ao longo do dia.`
+                  : 'Consuma no mínimo 2,5 a 3 litros de água ao longo do dia (cerca de 1 copo a cada 30 minutos em períodos mais quentes).'}
               </Text>
             </View>
           </View>
@@ -262,7 +318,7 @@ export default function CitizenGuideScreen({
               key={level.code}
               level={level}
               details={NC_DETAILS[level.code]}
-              isCurrent={level.code === currentAlert.code}
+              isCurrent={!isLoadingAlert && level.code === currentAlert.code}
               theme={theme}
               isDarkMode={isDarkMode}
             />
@@ -379,6 +435,17 @@ const styles = StyleSheet.create({
   },
   heroIntro: {
     marginTop: 24,
+  },
+  badgeLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  badgeLoadingText: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 12,
+    fontWeight: '600',
   },
   ncBadge: {
     alignSelf: 'flex-start',

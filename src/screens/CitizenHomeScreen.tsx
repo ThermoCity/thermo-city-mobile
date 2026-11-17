@@ -17,14 +17,12 @@ import ThermoLogo from '../components/ThermoLogo';
 import SupportPointCard from '../components/SupportPointCard';
 import SupportPointModal from '../components/SupportPointDetailsBtModal';
 import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
-import { SUPPORT_POINTS } from '../data/ncDataDefinition';
 import { HeatAlertResponse, PlaceFilter, SupportPoint } from '../interfaces/interfaces';
 import { shadow } from '../theme/shadowTheme';
 import { getPlaceBadgeConfig } from '../utils/placeUtils';
 import { useAuth } from '../context/AuthProvider';
-import { logoutService } from '../services/javaThermoCityService';
+import { logoutService, getTerritorialServices } from '../services/javaThermoCityService';
 import { getHeatAlertsService } from '../services/.netThermoCityService';
-
 
 const USER_LOCATION = {
   latitude: -22.1256,
@@ -39,13 +37,11 @@ const FILTERS: { key: PlaceFilter; label: string }[] = [
   { key: 'ubs', label: 'UBS Próximas' },
 ];
 
-// Mapeia o número do nível (1..5) da API para a configuração visual de HEAT_LEVELS
 const getHeatLevelConfig = (nivel?: number) => {
   const key = `NC${nivel || 1}` as keyof typeof HEAT_LEVELS;
   return HEAT_LEVELS[key] || HEAT_LEVELS.NC1;
 };
 
-// Formata "2026-11-17T03:06:31.094+00:00" para "00:06" (horário local)
 const formatUpdateTime = (isoString?: string) => {
   if (!isoString) return '--:--';
   const date = new Date(isoString);
@@ -53,7 +49,6 @@ const formatUpdateTime = (isoString?: string) => {
   return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 
-// Formata "2026-11-18" para "18/11"
 const formatShortDate = (dateStr?: string) => {
   if (!dateStr) return '';
   const parts = dateStr.split('-');
@@ -70,28 +65,52 @@ export default function CitizenHomeScreen() {
   const [alertData, setAlertData] = useState<HeatAlertResponse | null>(null);
   const [isLoadingAlert, setIsLoadingAlert] = useState<boolean>(true);
 
+  const [supportPoints, setSupportPoints] = useState<SupportPoint[]>([]);
+  const [isLoadingPoints, setIsLoadingPoints] = useState<boolean>(true);
+
   const theme = isDarkMode ? THEMES.dark : THEMES.light;
   const cardShadow = shadow(isDarkMode);
 
   useEffect(() => {
     let isMounted = true;
 
-    async function loadHeatAlerts() {
-      try {
-        const data = await getHeatAlertsService();
-        if (isMounted) {
-          setAlertData(data);
-        }
-      } catch (error) {
-        console.error('Falha ao carregar boletim climático:', error);
-      } finally {
-        if (isMounted) {
-          setIsLoadingAlert(false);
-        }
+    async function loadDashboardData() {
+      // Busca boletim climático e pontos territoriais em paralelo
+      const [alertsResult, pointsResult] = await Promise.allSettled([
+        getHeatAlertsService(),
+        getTerritorialServices(USER_LOCATION.latitude, USER_LOCATION.longitude),
+      ]);
+
+      if (!isMounted) return;
+
+      if (alertsResult.status === 'fulfilled') {
+        setAlertData(alertsResult.value);
+      } else {
+        console.error('Falha ao carregar boletim climático:', alertsResult.reason);
       }
+      setIsLoadingAlert(false);
+
+      if (pointsResult.status === 'fulfilled') {
+        const normalizedPoints: SupportPoint[] = pointsResult.value.map((point) => {
+          const normalizedStatus: SupportPoint['status'] =
+            point.status === 'Aberto' || point.status === 'Lotação Alta' || point.status === 'Fechado'
+              ? point.status
+              : 'Aberto';
+
+          return {
+            ...point,
+            type: point.type === 'refugio' || point.type === 'ubs' ? point.type : 'refugio',
+            status: normalizedStatus,
+          };
+        });
+        setSupportPoints(normalizedPoints);
+      } else {
+        console.error('Falha ao carregar pontos territoriais:', pointsResult.reason);
+      }
+      setIsLoadingPoints(false);
     }
 
-    loadHeatAlerts();
+    loadDashboardData();
     return () => {
       isMounted = false;
     };
@@ -132,10 +151,10 @@ export default function CitizenHomeScreen() {
   const visiblePoints = useMemo(() => {
     const list =
       filter === 'todos'
-        ? SUPPORT_POINTS
-        : SUPPORT_POINTS.filter((p) => p.type === filter);
+        ? supportPoints
+        : supportPoints.filter((p) => p.type === filter);
     return [...list].sort((a, b) => a.distanceKm - b.distanceKm);
-  }, [filter]);
+  }, [filter, supportPoints]);
 
   const openExternalMaps = (point: SupportPoint) => {
     const label = encodeURIComponent(point.name);
@@ -250,7 +269,7 @@ export default function CitizenHomeScreen() {
 
         {/* ───────── CONTEÚDO PRINCIPAL ───────── */}
         <View style={styles.content}>
-          {/* Card de Recomendação Preventiva vindo da API */}
+          {/* Card de Recomendação Preventiva */}
           <View
             style={[
               styles.alertCard,
@@ -270,7 +289,7 @@ export default function CitizenHomeScreen() {
             </View>
           </View>
 
-          {/* Previsão dos Próximos Dias (quando retornada pela API) */}
+          {/* Previsão dos Próximos Dias */}
           {alertData?.proximosDias && alertData.proximosDias.length > 0 && (
             <View style={styles.forecastSection}>
               <Text style={[styles.forecastHeaderTitle, { color: theme.textPrimary }]}>
@@ -387,7 +406,7 @@ export default function CitizenHomeScreen() {
                       longitude: point.longitude,
                     }}
                     title={point.name}
-                    description={`${point.distanceKm} km · ${point.status}`}
+                    description={`${point.distanceKm} km · ${point.address}`}
                     pinColor={badge.pin}
                     onPress={() => setSelectedPoint(point)}
                   />
@@ -414,15 +433,30 @@ export default function CitizenHomeScreen() {
           </View>
 
           {/* Lista Rápida dos Pontos Ordenados por Distância */}
-          {visiblePoints.map((point) => (
-            <SupportPointCard
-              key={point.id}
-              point={point}
-              theme={theme}
-              isDarkMode={isDarkMode}
-              onPress={setSelectedPoint}
-            />
-          ))}
+          {isLoadingPoints ? (
+            <View style={styles.pointsLoader}>
+              <ActivityIndicator size="small" color={BRAND_COLORS.laranjaSol} />
+              <Text style={[styles.pointsLoaderText, { color: theme.textSecondary }]}>
+                Carregando unidades próximas...
+              </Text>
+            </View>
+          ) : visiblePoints.length === 0 ? (
+            <View style={[styles.emptyPointsBox, { borderColor: theme.cardBorder }]}>
+              <Text style={[styles.pointsLoaderText, { color: theme.textSecondary }]}>
+                Nenhum ponto encontrado para o filtro selecionado.
+              </Text>
+            </View>
+          ) : (
+            visiblePoints.map((point) => (
+              <SupportPointCard
+                key={point.id}
+                point={point}
+                theme={theme}
+                isDarkMode={isDarkMode}
+                onPress={setSelectedPoint}
+              />
+            ))
+          )}
         </View>
       </ScrollView>
 
@@ -734,5 +768,22 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  pointsLoader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 24,
+  },
+  pointsLoaderText: {
+    fontSize: 13,
+  },
+  emptyPointsBox: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
   },
 });
