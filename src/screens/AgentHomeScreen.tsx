@@ -15,21 +15,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ThermoLogo from '../components/ThermoLogo';
 import VulnerablePersonCard from '../components/VulnerablePersonCard';
 import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
-import { INITIAL_VULNERABLE_LIST } from '../data/ncDataDefinition';
-import { HeatAlertResponse, VulnerablePerson } from '../interfaces/interfaces';
+import { HeatAlertResponse } from '../interfaces/interfaces';
 import { shadow } from '../theme/shadowTheme';
 import { useAuth } from '../context/AuthProvider';
-import { logoutService } from '../services/javaThermoCityService';
+import {
+  logoutService,
+  getAgentPriorityListService,
+} from '../services/javaThermoCityService';
 import { getHeatAlertsService } from '../services/.netThermoCityService';
 
 type Filter = 'todos' | 'pendente' | 'contatado';
-
-const ACTION_OPTIONS = [
-  'Ligação de monitoramento realizada',
-  'Visita domiciliária agendada',
-  'Encaminhado ao Refúgio Comunitário Leste',
-  'Acionada equipa de remoção médica',
-];
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'todos', label: 'Todos' },
@@ -37,13 +32,11 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'contatado', label: 'Concluídos' },
 ];
 
-// Mapeia o número do nível (1..5) da API para a configuração visual de HEAT_LEVELS
 const getHeatLevelConfig = (nivel?: number) => {
   const key = `NC${nivel || 1}` as keyof typeof HEAT_LEVELS;
   return HEAT_LEVELS[key] || HEAT_LEVELS.NC1;
 };
 
-// Formata "2026-11-17T03:06:31.094+00:00" para "00:06" (horário local)
 const formatUpdateTime = (isoString?: string) => {
   if (!isoString) return '--:--';
   const date = new Date(isoString);
@@ -54,12 +47,13 @@ const formatUpdateTime = (isoString?: string) => {
 export default function AgentHomeScreen() {
   const { user, logout } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
-  const [contacts, setContacts] = useState<VulnerablePerson[]>(INITIAL_VULNERABLE_LIST);
-  const [selectedPerson, setSelectedPerson] = useState<VulnerablePerson | null>(null);
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [selectedPerson, setSelectedPerson] = useState<any | null>(null);
   const [filter, setFilter] = useState<Filter>('todos');
 
   const [alertData, setAlertData] = useState<HeatAlertResponse | null>(null);
   const [isLoadingAlert, setIsLoadingAlert] = useState<boolean>(true);
+  const [isLoadingContacts, setIsLoadingContacts] = useState<boolean>(true);
 
   const theme = isDarkMode ? THEMES.dark : THEMES.light;
   const softSurface = isDarkMode ? '#242B30' : '#F3F6F8';
@@ -68,22 +62,30 @@ export default function AgentHomeScreen() {
   useEffect(() => {
     let isMounted = true;
 
-    async function loadHeatAlerts() {
-      try {
-        const data = await getHeatAlertsService();
-        if (isMounted) {
-          setAlertData(data);
-        }
-      } catch (error) {
-        console.error('Falha ao carregar boletim climático (Agente):', error);
-      } finally {
-        if (isMounted) {
-          setIsLoadingAlert(false);
-        }
+    async function loadAgentDashboard() {
+      const [alertsResult, priorityListResult] = await Promise.allSettled([
+        getHeatAlertsService(),
+        getAgentPriorityListService(),
+      ]);
+
+      if (!isMounted) return;
+
+      if (alertsResult.status === 'fulfilled') {
+        setAlertData(alertsResult.value);
+      } else {
+        console.error('Falha ao carregar boletim climático (Agente):', alertsResult.reason);
       }
+      setIsLoadingAlert(false);
+
+      if (priorityListResult.status === 'fulfilled') {
+        setContacts(priorityListResult.value.contacts || []);
+      } else {
+        console.error('Falha ao carregar lista prioritária:', priorityListResult.reason);
+      }
+      setIsLoadingContacts(false);
     }
 
-    loadHeatAlerts();
+    loadAgentDashboard();
     return () => {
       isMounted = false;
     };
@@ -138,14 +140,32 @@ export default function AgentHomeScreen() {
     [contacts]
   );
 
+  const doneCount = useMemo(
+    () => contacts.filter((c) => c.status === 'contatado').length,
+    [contacts]
+  );
+
   const visibleContacts = useMemo(() => {
     const list =
       filter === 'todos' ? contacts : contacts.filter((c) => c.status === filter);
     return [...list].sort((a, b) => {
       if (a.status !== b.status) return a.status === 'pendente' ? -1 : 1;
-      return b.heatLevel.localeCompare(a.heatLevel);
+      return (a.posicao || 999) - (b.posicao || 999);
     });
   }, [contacts, filter]);
+
+  const dynamicActionOptions = useMemo(() => {
+    const shelterOption = selectedPerson?.nearestShelter
+      ? `Encaminhado para ${selectedPerson.nearestShelter}`
+      : 'Encaminhado ao refúgio climatizado mais próximo';
+
+    return [
+      'Ligação de monitoramento realizada',
+      'Visita domiciliária agendada',
+      shelterOption,
+      'Acionada equipe de remoção médica',
+    ];
+  }, [selectedPerson]);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.navHeader }]}>
@@ -268,7 +288,7 @@ export default function AgentHomeScreen() {
             </View>
           </View>
 
-          {/* KPIs */}
+          {/* KPIs Dinâmicos */}
           <View
             style={[
               styles.kpiCard,
@@ -281,21 +301,23 @@ export default function AgentHomeScreen() {
                 {pendingCount}
               </Text>
               <Text style={[styles.kpiLabel, { color: theme.textSecondary }]}>
-                Contactos{'\n'}pendentes
+                Contatos{'\n'}pendentes
               </Text>
             </View>
             <View style={[styles.kpiDivider, { backgroundColor: theme.cardBorder }]} />
             <View style={styles.kpiItem}>
-              <Text style={[styles.kpiValue, { color: theme.textPrimary }]}>3</Text>
+              <Text style={[styles.kpiValue, { color: '#2E7D32' }]}>{doneCount}</Text>
               <Text style={[styles.kpiLabel, { color: theme.textSecondary }]}>
-                Setores{'\n'}em NC3+
+                Contatos{'\n'}concluídos
               </Text>
             </View>
             <View style={[styles.kpiDivider, { backgroundColor: theme.cardBorder }]} />
             <View style={styles.kpiItem}>
-              <Text style={[styles.kpiValue, { color: theme.textPrimary }]}>2</Text>
+              <Text style={[styles.kpiValue, { color: theme.textPrimary }]}>
+                {contacts.length}
+              </Text>
               <Text style={[styles.kpiLabel, { color: theme.textSecondary }]}>
-                Refúgios{'\n'}abertos
+                Total na{'\n'}lista UBS
               </Text>
             </View>
           </View>
@@ -304,9 +326,6 @@ export default function AgentHomeScreen() {
           <View style={styles.listHeader}>
             <Text style={[styles.listTitle, { color: theme.textPrimary }]}>
               Contatos prioritários
-            </Text>
-            <Text style={[styles.listSubtitle, { color: theme.textSecondary }]}>
-              Ordenados por zona de risco térmico e vulnerabilidade
             </Text>
           </View>
 
@@ -338,10 +357,17 @@ export default function AgentHomeScreen() {
             })}
           </View>
 
-          {visibleContacts.length === 0 ? (
+          {isLoadingContacts ? (
+            <View style={styles.contactsLoader}>
+              <ActivityIndicator size="small" color={BRAND_COLORS.laranjaSol} />
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                Carregando lista prioritária da unidade...
+              </Text>
+            </View>
+          ) : visibleContacts.length === 0 ? (
             <View style={[styles.emptyBox, { borderColor: theme.cardBorder }]}>
               <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                Nenhum contacto nesta lista.
+                Nenhum contato nesta lista.
               </Text>
             </View>
           ) : (
@@ -373,13 +399,13 @@ export default function AgentHomeScreen() {
             <View style={[styles.sheetHandle, { backgroundColor: theme.cardBorder }]} />
 
             <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
-              Registar ação de cuidado
+              Registrar ação de cuidado
             </Text>
             <Text style={[styles.modalSub, { color: theme.textSecondary }]}>
               {selectedPerson?.name}
             </Text>
 
-            {ACTION_OPTIONS.map((option) => (
+            {dynamicActionOptions.map((option) => (
               <TouchableOpacity
                 key={option}
                 style={[styles.modalOption, { backgroundColor: softSurface }]}
@@ -662,6 +688,13 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  contactsLoader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 24,
   },
   emptyBox: {
     borderWidth: 1,

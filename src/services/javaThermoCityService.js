@@ -2,14 +2,21 @@ import axios from "axios";
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
+// LOGIN E CADASTRO
 const API_USER_CREATION_URL = process.env.EXPO_PUBLIC_API_JAVA_CADASTRO;
 const API_LOGIN_URL = process.env.EXPO_PUBLIC_API_JAVA_LOGIN;
 
-const API_BASE_SERVICOS_TERRITORIAL = process.env.EXPO_PUBLIC_API_JAVA_BASE_SERVICOS_TERRITORIAL;
-
+// CRUD DE FAMIILIARES VULNERAVEIS
 const API_CRUD_FAMILIARES_URL = process.env.EXPO_PUBLIC_API_JAVA_CRUD_FAMILIARES_VULNERAVEIS;
 
+// CRUD DO USUARIO LOGADO
 const API_USER_URL = process.env.EXPO_PUBLIC_API_JAVA_USER;
+
+// GET DOS LOCAIS DE REFÚGIO E UBS PARA CIDADÃO
+const API_BASE_SERVICOS_TERRITORIAL = process.env.EXPO_PUBLIC_API_JAVA_BASE_SERVICOS_TERRITORIAL;
+
+// GET NA LISTA DE PESSOAS VULNERAVEIS PARA AGENTE CONTATAR
+const API_LISTA_AGENTE_URL = process.env.EXPO_PUBLIC_API_JAVA_LISTA_AGENTE;
 
 const TOKEN_KEY = 'user_token';
 const USER_ID_KEY = 'user_id';
@@ -304,5 +311,66 @@ export const getTerritorialServices = async (userLat = -22.1256, userLon = -51.3
   } catch (error) {
     console.error('Erro ao buscar pontos territoriais:', error.response?.data || error.message);
     throw new Error(error.response?.data?.message || 'Erro ao carregar pontos de apoio no mapa.');
+  }
+};
+
+// API LISTA PRIORITÁRIA DO AGENTE DE SAÚDE
+export const getAgentPriorityListService = async () => {
+  if (!API_LISTA_AGENTE_URL) {
+    throw new Error('Variável EXPO_PUBLIC_API_JAVA_LISTA_AGENTE não definida no .env');
+  }
+
+  try {
+    const config = await getAuthConfig();
+    const response = await axios.get(API_LISTA_AGENTE_URL, config);
+    const data = response.data || {};
+
+    const nivelCalor = data.nivelCalor || 1;
+    const heatLevelCode = `NC${nivelCalor}`;
+    const rawItems = Array.isArray(data.itens?.conteudo) ? data.itens.conteudo : [];
+
+    const mappedContacts = rawItems.map((item) => {
+      const pessoa = item.pessoa || {};
+      const refugio = item.refugioMaisProximo;
+      const isPendente = String(item.statusContato || '').toUpperCase() === 'PENDENTE';
+
+      const distanceText =
+        refugio?.distanciaMetros !== null && refugio?.distanciaMetros !== undefined
+          ? ` (${refugio.distanciaMetros}m)`
+          : '';
+
+      return {
+        id: String(item.id),
+        posicao: item.posicao,
+        pontuacao: item.pontuacao,
+        name: pessoa.nome || 'Cidadão não identificado',
+        age: pessoa.idade,
+        phone: pessoa.telefone || '',
+        referenceName: pessoa.contatoReferenciaNome || '',
+        referencePhone: pessoa.contatoReferenciaTelefone || '',
+        sector: item.setorBairro
+          ? `${item.setorBairro} · Setor ${item.setorCodigo || ''}`
+          : `${item.ubsNome || data.ubsNome || 'UBS Local'} · Setor ${item.setorCodigo || ''}`,
+        heatLevel: heatLevelCode,
+        reason: item.motivos || 'Monitoramento preventivo',
+        nearestShelter: refugio ? `${refugio.nome}${distanceText}` : null,
+        status: isPendente ? 'pendente' : 'contatado',
+        lastAction: item.ultimoContatoEm
+          ? `Contatado em ${new Date(item.ultimoContatoEm).toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}`
+          : undefined,
+      };
+    });
+
+    return {
+      ubsNome: data.ubsNome || '',
+      nivelCalor,
+      contacts: mappedContacts,
+    };
+  } catch (error) {
+    console.error('Erro ao buscar lista prioritária do agente:', error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || 'Não foi possível carregar a lista prioritária.');
   }
 };

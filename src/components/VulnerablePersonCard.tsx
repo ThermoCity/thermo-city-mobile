@@ -1,25 +1,22 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Platform,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native';
+import { FontAwesome6 } from '@expo/vector-icons';
 import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
-import { VulnerablePerson } from '../interfaces/interfaces';
+import { shadow } from '../theme/shadowTheme';
 
 type AppTheme = typeof THEMES.light;
 
 interface VulnerablePersonCardProps {
-  person: VulnerablePerson;
+  person: any;
   theme: AppTheme;
   isDarkMode: boolean;
-  onActionPress: (person: VulnerablePerson) => void;
+  onActionPress: (person: any) => void;
 }
 
+const SUCCESS = '#2E9E6B';
+
 const getInitials = (fullName: string) => {
-  const base = fullName.split(/[,(]/)[0];
+  const base = (fullName || '').split(/[,(]/)[0];
   const words = base
     .split(' ')
     .filter((w) => w && !['Dona', 'Sr.', 'Sra.', 'Dr.', 'Dra.'].includes(w));
@@ -30,17 +27,9 @@ const getInitials = (fullName: string) => {
     .toUpperCase();
 };
 
-const cardShadow = (isDark: boolean) =>
-  Platform.select({
-    ios: {
-      shadowColor: '#0B1A20',
-      shadowOpacity: isDark ? 0.4 : 0.08,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: 8 },
-    },
-    android: { elevation: isDark ? 0 : 3 },
-    default: {},
-  });
+// Nome do contato de referência sem o parentesco: "Carlos Souza (filho)" → "Carlos"
+const getFirstName = (fullName?: string) =>
+  (fullName || '').split(/[,(]/)[0].trim().split(' ')[0];
 
 export default function VulnerablePersonCard({
   person,
@@ -48,85 +37,133 @@ export default function VulnerablePersonCard({
   isDarkMode,
   onActionPress,
 }: VulnerablePersonCardProps) {
-  const levelInfo = HEAT_LEVELS[person.heatLevel];
+  const levelInfo =
+    HEAT_LEVELS[person.heatLevel as keyof typeof HEAT_LEVELS] || HEAT_LEVELS.NC3;
   const isDone = person.status === 'contatado';
   const softSurface = isDarkMode ? '#242B30' : '#F3F6F8';
+
+  const handleCall = (phoneNumber?: string) => {
+    if (!phoneNumber) return;
+    Linking.openURL(`tel:${phoneNumber.replace(/\s+/g, '')}`);
+  };
+
+  const hasReference = !!(person.referenceName || person.referencePhone);
 
   return (
     <View
       style={[
-        styles.personCard,
+        styles.card,
         { backgroundColor: theme.card, borderColor: theme.cardBorder },
-        cardShadow(isDarkMode),
+        shadow(isDarkMode),
       ]}
     >
-      <View style={[styles.personAccent, { backgroundColor: levelInfo.color }]} />
+      <View style={[styles.accent, { backgroundColor: levelInfo.color }]} />
 
-      <View style={styles.personInner}>
-        <View style={styles.personTopRow}>
-          <View style={[styles.avatar, { backgroundColor: softSurface }]}>
+      <View style={styles.inner}>
+        {/* ───────── Cabeçalho ───────── */}
+        <View style={styles.header}>
+          <View style={[styles.avatar, { backgroundColor: `${levelInfo.color}33` }]}>
             <Text style={[styles.avatarText, { color: theme.textPrimary }]}>
               {getInitials(person.name)}
             </Text>
           </View>
 
-          <View style={styles.personMainInfo}>
-            <Text style={[styles.personName, { color: theme.textPrimary }]}>
+          <View style={styles.headerInfo}>
+            {person.posicao ? (
+              <Text style={[styles.rank, { color: theme.textSecondary }]}>
+                Prioridade #{person.posicao}
+              </Text>
+            ) : null}
+            <Text style={[styles.name, { color: theme.textPrimary }]} numberOfLines={1}>
               {person.name}
             </Text>
-            <Text style={[styles.personSector, { color: theme.textSecondary }]}>
-              {person.sector}
-            </Text>
           </View>
 
-          <View style={[styles.miniNcTag, { backgroundColor: levelInfo.color }]}>
-            <Text style={[styles.miniNcText, { color: levelInfo.textColor }]}>
-              {levelInfo.code}
-            </Text>
+          <View style={[styles.levelChip, { backgroundColor: levelInfo.color }]}>
+            <Text style={[styles.levelCode, { color: levelInfo.textColor }]}>{levelInfo.code}</Text>
+            <Text style={[styles.levelLabel, { color: levelInfo.textColor }]}>{levelInfo.label}</Text>
           </View>
         </View>
 
-        <View style={[styles.reasonBox, { backgroundColor: softSurface }]}>
-          <Text style={[styles.reasonText, { color: theme.textSecondary }]}>
+        {/* ───────── Motivo + refúgio ───────── */}
+        {person.reason ? (
+          <Text style={[styles.reason, { color: theme.textSecondary }]} numberOfLines={3}>
             {person.reason}
           </Text>
-        </View>
+        ) : null}
 
-        <View style={styles.personFooter}>
+        {person.nearestShelter ? (
+          <View style={[styles.shelterPill, { backgroundColor: softSurface }]}>
+            <FontAwesome6 name="person-shelter" size={13} color={BRAND_COLORS.laranjaSol} />
+            <Text style={[styles.shelterText, { color: theme.textPrimary }]} numberOfLines={1}>
+              {person.nearestShelter}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* ───────── Contatos ───────── */}
+        {(person.phone || hasReference) && (
+          <View style={styles.contactsRow}>
+            {person.phone ? (
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => handleCall(person.phone)}
+                accessibilityLabel={`Ligar para o cidadão ${person.phone}`}
+                style={[styles.contactBtn, { borderColor: theme.cardBorder }]}
+              >
+                <FontAwesome6 name="phone" size={15} color={BRAND_COLORS.laranjaSol} />
+                <Text style={[styles.contactText, { color: theme.textPrimary }]} numberOfLines={1}>
+                  Contato
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {hasReference ? (
+              <TouchableOpacity
+                activeOpacity={0.75}
+                disabled={!person.referencePhone}
+                onPress={() => handleCall(person.referencePhone)}
+                accessibilityLabel={`Ligar para ${person.referenceName || 'contato de referência'}`}
+                style={[
+                  styles.contactBtn,
+                  { borderColor: theme.cardBorder },
+                  !person.referencePhone && { opacity: 0.5 },
+                ]}
+              >
+                <FontAwesome6 name="person-circle-check" size={15} color={BRAND_COLORS.laranjaSol} />
+                <Text style={[styles.contactText, { color: theme.textPrimary }]} numberOfLines={1}>
+                  {getFirstName(person.referenceName) || 'Referência'}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        )}
+
+        {/* ───────── Rodapé ───────── */}
+        <View style={[styles.footer, { borderTopColor: theme.cardBorder }]}>
           <View style={styles.statusWrap}>
-            <View
-              style={[
-                styles.statusDot,
-                { backgroundColor: isDone ? '#2E7D32' : BRAND_COLORS.laranjaSol },
-              ]}
+            <FontAwesome6
+              name={isDone ? 'check-circle' : 'clock'}
+              size={16}
+              color={isDone ? SUCCESS : BRAND_COLORS.laranjaSol}
             />
             <Text
-              style={[
-                styles.statusText,
-                { color: isDone ? '#2E7D32' : BRAND_COLORS.laranjaSol },
-              ]}
-              numberOfLines={2}
+              style={[styles.statusText, { color: isDone ? SUCCESS : BRAND_COLORS.laranjaSol }]}
+              numberOfLines={1}
             >
-              {isDone
-                ? person.lastAction || 'Contato registrado'
-                : 'Aguardando ação'}
+              {isDone ? person.lastAction || 'Contato registrado' : 'Aguardando ação'}
             </Text>
           </View>
 
           <TouchableOpacity
             style={[
               styles.actionBtn,
-              isDone && [styles.actionBtnSecondary, { borderColor: theme.cardBorder }],
+              isDone && { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.cardBorder },
             ]}
             onPress={() => onActionPress(person)}
             activeOpacity={0.85}
           >
-            <Text
-              style={[
-                styles.actionBtnText,
-                isDone && { color: theme.textSecondary },
-              ]}
-            >
+            <Text style={[styles.actionBtnText, isDone && { color: theme.textSecondary }]}>
               {isDone ? 'Atualizar' : 'Registrar contato'}
             </Text>
           </TouchableOpacity>
@@ -137,103 +174,93 @@ export default function VulnerablePersonCard({
 }
 
 const styles = StyleSheet.create({
-  personCard: {
+  card: {
     flexDirection: 'row',
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
     marginBottom: 14,
   },
-  personAccent: {
-    width: 5,
-  },
-  personInner: {
-    flex: 1,
-    padding: 16,
-  },
-  personTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  accent: { width: 4 },
+  inner: { flex: 1, padding: 16 },
+
+  /* Cabeçalho */
+  header: { flexDirection: 'row', alignItems: 'center' },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
-    fontSize: 15,
+  avatarText: { fontSize: 15, fontWeight: '800', letterSpacing: 0.4 },
+  headerInfo: { flex: 1, marginHorizontal: 12 },
+  rank: {
+    fontSize: 10,
     fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 2,
   },
-  personMainInfo: {
-    flex: 1,
-    paddingHorizontal: 12,
-  },
-  personName: {
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: -0.1,
-  },
-  personSector: {
-    fontSize: 12,
-    marginTop: 3,
-  },
-  miniNcTag: {
+  name: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
+  age: { fontSize: 12, fontWeight: '500' },
+  sectorRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  sector: { flex: 1, fontSize: 12 },
+  levelChip: {
+    alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 5,
+    borderRadius: 14,
+    minWidth: 62,
+  },
+  levelCode: { fontSize: 12, fontWeight: '800' },
+  levelLabel: { fontSize: 9, fontWeight: '700', marginTop: 1 },
+
+  /* Motivo + refúgio */
+  reason: { fontSize: 13, lineHeight: 19, marginTop: 14 },
+  shelterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 999,
+    maxWidth: '100%',
   },
-  miniNcText: {
-    fontSize: 11,
-    fontWeight: '800',
+  shelterText: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
+
+  /* Contatos */
+  contactsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  contactBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 999,
+    borderWidth: 1,
   },
-  reasonBox: {
-    marginTop: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-  },
-  reasonText: {
-    fontSize: 12.5,
-    lineHeight: 18,
-  },
-  personFooter: {
-    marginTop: 14,
+  contactText: { fontSize: 12, fontWeight: '700', flexShrink: 1 },
+
+  /* Rodapé */
+  footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  statusWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    paddingRight: 10,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    flexShrink: 1,
-  },
+  statusWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 10 },
+  statusText: { flexShrink: 1, fontSize: 12, fontWeight: '700' },
   actionBtn: {
     backgroundColor: BRAND_COLORS.laranjaSol,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 999,
   },
-  actionBtnSecondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-  },
-  actionBtnText: {
-    color: BRAND_COLORS.azulEscuro,
-    fontSize: 12,
-    fontWeight: '800',
-  },
+  actionBtnText: { color: BRAND_COLORS.azulEscuro, fontSize: 12, fontWeight: '800' },
 });
