@@ -282,17 +282,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  /* Ações do swipe */
+  /* Ações do swipe - Ajustado para acompanhar a altura dinâmica do card */
   rowBack: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'stretch',
+    alignItems: 'center', // Alterado de 'stretch' para 'center' para centralizar verticalmente
     justifyContent: 'flex-end',
     paddingRight: ACTION_GAP,
     gap: ACTION_GAP,
   },
   backBtn: {
     width: ACTION_SIZE,
+    height: '92%', // Ocupa quase toda a altura do card dinamicamente sem vazar
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
