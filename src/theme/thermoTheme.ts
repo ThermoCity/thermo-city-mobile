@@ -5,22 +5,8 @@ export const BRAND_COLORS = {
   branco: '#FFFFFF',
 } as const;
 
-export interface HeatLevelInfo {
-  code: 'NC1' | 'NC2' | 'NC3' | 'NC4' | 'NC5';
-  label: string;
-  color: string;
-  textColor: string;
-}
 
-export const HEAT_LEVELS: Record<'NC1' | 'NC2' | 'NC3' | 'NC4' | 'NC5', HeatLevelInfo> = {
-  NC1: { code: 'NC1', label: 'Muito baixo', color: '#F0D8CA', textColor: '#1D2F36' },
-  NC2: { code: 'NC2', label: 'Baixo', color: '#ECB49A', textColor: '#1D2F36' },
-  NC3: { code: 'NC3', label: 'Moderado', color: '#E16C42', textColor: '#1D2F36' },
-  NC4: { code: 'NC4', label: 'Alto', color: '#B85130', textColor: '#FFFFFF' },
-  NC5: { code: 'NC5', label: 'Muito alto', color: '#853922', textColor: '#FFFFFF' },
-};
-
-export interface ThemeTokens {
+export interface ThemeToggles {
   mode: 'light' | 'dark';
   background: string;
   card: string;
@@ -36,7 +22,7 @@ export interface ThemeTokens {
   accentActionText: string;
 }
 
-export const THEMES: Record<'light' | 'dark', ThemeTokens> = {
+export const THEMES: Record<'light' | 'dark', ThemeToggles> = {
   light: {
     mode: 'light',
     background: '#EEF2F4',

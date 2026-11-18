@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
+import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
+import { HEAT_LEVELS } from '../utils/thermoCityUtils';
 import { shadow } from '../theme/shadowTheme';
 import { getVulnerablePersonGuidanceService } from '../services/javaThermoCityService';
 

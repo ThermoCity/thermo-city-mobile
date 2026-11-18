@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ScrollViewInstance,
   StatusBar,
   StyleSheet,
   Text,
@@ -57,7 +58,7 @@ export default function HealthChatScreen({
   const [inputText, setInputText] = useState<string>('');
   const [isSending, setIsSending] = useState<boolean>(false);
   const [sessionUuid, setSessionUuid] = useState<string>(() => Crypto.randomUUID());
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
 
   const isDarkMode = externalDarkMode !== undefined ? externalDarkMode : internalDarkMode;
   const theme = isDarkMode ? THEMES.dark : THEMES.light;

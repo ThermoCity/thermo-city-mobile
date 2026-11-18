@@ -15,7 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ThermoLogo from '../components/ThermoLogo';
 import VulnerablePersonCard from '../components/VulnerablePersonCard';
 import VulnerabilityGuidanceScreen from './AgentCitizenGuidanceScreen';
-import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
+import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
+import { HEAT_LEVELS } from '../utils/thermoCityUtils';
 import { HeatAlertResponse } from '../interfaces/interfaces';
 import { shadow } from '../theme/shadowTheme';
 import { useAuth } from '../context/AuthProvider';
@@ -26,6 +27,7 @@ import {
   getAgentContactStatusListService,
 } from '../services/javaThermoCityService';
 import { getHeatAlertsService } from '../services/.netThermoCityService';
+import ChangeThemeBtn from '../components/ThemeToggleButton';
 
 type Filter = 'todos' | 'pendente' | 'contatado';
 
@@ -68,6 +70,8 @@ export default function AgentHomeScreen() {
   const theme = isDarkMode ? THEMES.dark : THEMES.light;
   const softSurface = isDarkMode ? '#242B30' : '#F3F6F8';
   const cardShadow = shadow(isDarkMode);
+
+  const toggleTheme = () => setIsDarkMode((prev) => !prev);
 
   useEffect(() => {
     let isMounted = true;
@@ -278,14 +282,7 @@ export default function AgentHomeScreen() {
             </View>
 
             <View style={styles.topBarActions}>
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={() => setIsDarkMode(!isDarkMode)}
-                accessibilityLabel={isDarkMode ? 'Ativar modo claro' : 'Ativar modo escuro'}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.iconBtnText}>{isDarkMode ? '☀' : '☾'}</Text>
-              </TouchableOpacity>
+              <ChangeThemeBtn isDarkMode={isDarkMode} onPress={toggleTheme} />
               <TouchableOpacity
                 style={[styles.iconBtn, styles.logoutBtn]}
                 onPress={handleLogout}
@@ -477,7 +474,9 @@ export default function AgentHomeScreen() {
         visible={Boolean(selectedPerson)}
         transparent
         animationType="slide"
-        onRequestClose={() => !isSubmittingAction && setSelectedPerson(null)}
+        onRequestClose={() => {
+          if (!isSubmittingAction) setSelectedPerson(null);
+        }}
       >
         <Pressable
           style={styles.modalOverlay}
@@ -602,10 +601,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  iconBtnText: {
-    color: BRAND_COLORS.branco,
-    fontSize: 16,
   },
   logoutBtn: {
     paddingHorizontal: 14,

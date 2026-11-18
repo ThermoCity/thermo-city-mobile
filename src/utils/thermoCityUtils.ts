@@ -1,4 +1,4 @@
-import { NCDescription, SupportPoint, VulnerablePerson } from "../interfaces/interfaces";
+import { HeatTip, NCDescription, SupportPoint, VulnerablePerson } from "../interfaces/interfaces";
 
 export const INITIAL_VULNERABLE_LIST: VulnerablePerson[] = [
   {
@@ -111,4 +111,67 @@ export const NC_DETAILS: Record<string, NCDescription> = {
     recommendation:
       'Suspenda atividades externas. Ao menor sintoma de mal-estar, procure imediatamente uma UBS.',
   },
+};
+
+export const HEAT_TIPS: HeatTip[] = [
+  {
+    id: '1',
+    category: 'hidratacao',
+    categoryLabel: 'HIDRATAÇÃO',
+    tag: 'A cada 30 min',
+    title: 'Beba água antes mesmo de sentir sede',
+    description:
+      'A sede já é um sinal inicial de desidratação. Priorize água fresca, água de coco e soro caseiro. Evite bebidas alcoólicas, muito açucaradas ou com excesso de cafeína.',
+  },
+  {
+    id: '2',
+    category: 'protecao',
+    categoryLabel: 'PROTEÇÃO',
+    tag: '10h às 17h',
+    title: 'Evite exposição direta ao sol nos horários de pico',
+    description:
+      'Reduza atividades físicas intensas ao ar livre. Se precisar sair, procure rotas com sombra, use roupas leves de algodão, cores claras, boné e protetor solar.',
+  },
+  {
+    id: '3',
+    category: 'protecao',
+    categoryLabel: 'AMBIENTE',
+    tag: 'Em casa',
+    title: 'Mantenha os ambientes ventilados e úmidos',
+    description:
+      'Feche cortinas e persianas nas janelas que recebem sol direto durante a tarde. Use toalhas úmidas ou bacias com água nos quartos para amenizar o ar seco.',
+  },
+  {
+    id: '4',
+    category: 'sintomas',
+    categoryLabel: 'SINAL DE ALERTA',
+    tag: 'Atenção redobrada',
+    title: 'Reconheça os sinais de insolação e exaustão térmica',
+    description:
+      'Tontura, dor de cabeça forte, náuseas, pele muito quente e seca, confusão mental ou fraqueza exigem resfriamento imediato do corpo e busca por uma UBS ou Refúgio.',
+  },
+  {
+    id: '5',
+    category: 'hidratacao',
+    categoryLabel: 'GRUPOS DE RISCO',
+    tag: 'Cuidado ativo',
+    title: 'Ofereça líquidos regularmente a idosos, crianças e pets',
+    description:
+      'Idosos e bebês têm menor percepção de sede e desidratam mais rápido. Nunca deixe crianças ou animais dentro de veículos estacionados, mesmo por poucos minutos.',
+  },
+];
+
+export interface HeatLevelInfo {
+  code: 'NC1' | 'NC2' | 'NC3' | 'NC4' | 'NC5';
+  label: string;
+  color: string;
+  textColor: string;
+}
+
+export const HEAT_LEVELS: Record<'NC1' | 'NC2' | 'NC3' | 'NC4' | 'NC5', HeatLevelInfo> = {
+  NC1: { code: 'NC1', label: 'Muito baixo', color: '#F0D8CA', textColor: '#1D2F36' },
+  NC2: { code: 'NC2', label: 'Baixo', color: '#ECB49A', textColor: '#1D2F36' },
+  NC3: { code: 'NC3', label: 'Moderado', color: '#E16C42', textColor: '#1D2F36' },
+  NC4: { code: 'NC4', label: 'Alto', color: '#B85130', textColor: '#FFFFFF' },
+  NC5: { code: 'NC5', label: 'Muito alto', color: '#853922', textColor: '#FFFFFF' },
 };

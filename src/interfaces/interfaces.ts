@@ -79,3 +79,4 @@ export interface HeatAlertResponse {
   atualizadoEm: string;
   desatualizado: boolean;
 }
+

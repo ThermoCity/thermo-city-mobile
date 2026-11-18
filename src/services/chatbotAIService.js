@@ -8,7 +8,6 @@ export const sendHealthChatMessageService = async ({ conversationId, message }) 
   }
 
   try {
-    // Requisição POST pública (sem envio de token JWT)
     const config = {
       headers: {
         'Content-Type': 'application/json',

@@ -30,7 +30,7 @@ function AppRoutes() {
         <>  
         <Stack.Screen name="MainTabs" component={MainTabs} />
         <Stack.Screen name="RegisterForms" component={RegisterForms} />
-        <Stack.Screen name="AgentCitizenGuidanceScreen" getComponent={AgentCitizenGuidanceScreen} />
+        <Stack.Screen name="AgentCitizenGuidanceScreen" component={AgentCitizenGuidanceScreen} />
 
         </>
       )}

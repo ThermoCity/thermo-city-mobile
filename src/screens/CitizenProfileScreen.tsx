@@ -22,7 +22,8 @@ import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ThermoLogo from '../components/ThermoLogo';
-import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
+import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
+import { HEAT_LEVELS } from '../utils/thermoCityUtils';
 import { shadow } from '../theme/shadowTheme';
 import { useAuth } from '../context/AuthProvider';
 import {
@@ -31,27 +32,17 @@ import {
   logoutService,
   updateUserService,
 } from '../services/javaThermoCityService';
+import { NotificationPrefs } from '../utils/notificationUtils';
+import ChangeThemeBtn from '../components/ThemeToggleButton';
 
-/* ───────── Tipos e constantes ───────── */
-type HeatCode = keyof typeof HEAT_LEVELS;
-type PermissionState = 'granted' | 'denied' | 'undetermined';
-
-interface NotificationPrefs {
-  heatAlerts: boolean;
-  minLevel: HeatCode;
-  familyAlerts: boolean;
-  hydrationReminders: boolean;
-  supportPoints: boolean;
-}
+type PermissionState = 'undetermined' | 'granted' | 'denied';
 
 const PREFS_KEY = '@thermocity:notification_prefs';
 
 const DEFAULT_PREFS: NotificationPrefs = {
   heatAlerts: true,
-  minLevel: 'NC4',
-  familyAlerts: true,
+  minLevel: 'NC3',
   hydrationReminders: false,
-  supportPoints: false,
 };
 
 const getInitials = (text?: string) => {
@@ -61,7 +52,6 @@ const getInitials = (text?: string) => {
   return text.substring(0, 2).toUpperCase();
 };
 
-// Exibe só parte do CPF por privacidade: •••.456.789-••
 const maskCpf = (cpf?: string) => {
   const digits = (cpf || '').replace(/\D/g, '');
   if (digits.length !== 11) return cpf || '';
@@ -76,7 +66,6 @@ const formatPhone = (text: string) => {
   return cleaned;
 };
 
-// CPF completo formatado (000.000.000-00) para o campo bloqueado do modal
 const formatCpf = (cpf?: string) => {
   const d = (cpf || '').replace(/\D/g, '').slice(0, 11);
   if (d.length !== 11) return cpf || '';
@@ -98,22 +87,20 @@ export default function CitizenProfile() {
   const theme = isDarkMode ? THEMES.dark : THEMES.light;
   const cardShadow = shadow(isDarkMode);
 
-  /* Dados do usuário */
+  const toggleTheme = () => setIsDarkMode((prev) => !prev);
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [cpf, setCpf] = useState('');
   const [cep, setCep] = useState('');
-  // Últimos dados vindos do servidor (usados para descartar edições ao cancelar)
   const serverData = useRef<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  /* Notificações */
   const [permission, setPermission] = useState<PermissionState>('undetermined');
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
 
-  /* Outros */
   const [familyCount, setFamilyCount] = useState<number | null>(null);
   const [isAboutVisible, setIsAboutVisible] = useState(false);
 
@@ -131,7 +118,7 @@ export default function CitizenProfile() {
   }, []);
 
   const closeEdit = () => {
-    fillFields(serverData.current); // descarta o que foi digitado e não salvo
+    fillFields(serverData.current);
     setIsEditing(false);
   };
 
@@ -139,7 +126,6 @@ export default function CitizenProfile() {
     fillFields(user);
   }, [user, fillFields]);
 
-  /* ───────── Notificações: permissão + preferências ───────── */
   const refreshPermission = useCallback(async () => {
     if (Platform.OS === 'web') return;
     try {
@@ -153,7 +139,6 @@ export default function CitizenProfile() {
   useFocusEffect(
     useCallback(() => {
       refreshPermission();
-      // Dados mais recentes do perfil (GET usuario/me)
       getUserService()
         .then((data: any) => {
           if (data && typeof data === 'object') fillFields(data);
@@ -165,7 +150,6 @@ export default function CitizenProfile() {
     }, [refreshPermission, fillFields])
   );
 
-  // Reconsulta a permissão quando o usuário volta dos ajustes do sistema
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') refreshPermission();
@@ -214,7 +198,6 @@ export default function CitizenProfile() {
 
   const notificationsOn = permission === 'granted';
 
-  /* ───────── Ações da conta ───────── */
   const handleLogout = () => {
     Alert.alert('Sair da conta', 'Deseja realmente encerrar sua sessão?', [
       { text: 'Cancelar', style: 'cancel' },
@@ -236,7 +219,6 @@ export default function CitizenProfile() {
   const persistProfile = async (emailChanged: boolean) => {
     try {
       setIsSaving(true);
-      // PUT usuario/me altera apenas nome, e-mail, telefone e CEP (CPF não muda)
       const payload = {
         nome: name.trim(),
         email: email.trim(),
@@ -247,7 +229,6 @@ export default function CitizenProfile() {
       setIsEditing(false);
 
       if (emailChanged) {
-        // Trocar o e-mail invalida o token atual: é preciso entrar de novo
         Alert.alert(
           'E-mail alterado',
           'Seus dados foram atualizados. Por segurança, entre novamente com o novo e-mail.',
@@ -257,9 +238,7 @@ export default function CitizenProfile() {
               onPress: async () => {
                 try {
                   await logoutService();
-                } catch (e) {
-                  // o token já não vale mais; segue para o logout local
-                }
+                } catch (e) {}
                 if (logout) await logout();
               },
             },
@@ -314,7 +293,6 @@ export default function CitizenProfile() {
     persistProfile(false);
   };
 
-  /* ───────── Pequenos componentes internos ───────── */
   const InfoRow = ({ icon, label, value }: { icon: any; label: string; value?: string }) => (
     <View style={styles.infoRow}>
       <View style={[styles.infoIcon, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder }]}>
@@ -409,14 +387,7 @@ export default function CitizenProfile() {
               <Text style={styles.screenTitle}>Meu perfil</Text>
             </View>
             <View style={styles.topBarActions}>
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={() => setIsDarkMode(!isDarkMode)}
-                accessibilityLabel={isDarkMode ? 'Ativar modo claro' : 'Ativar modo escuro'}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.iconBtnText}>{isDarkMode ? '☀' : '☾'}</Text>
-              </TouchableOpacity>
+              <ChangeThemeBtn isDarkMode={isDarkMode} onPress={toggleTheme} />
               <TouchableOpacity
                 style={styles.iconBtn}
                 onPress={() => setIsEditing(true)}
@@ -449,7 +420,6 @@ export default function CitizenProfile() {
 
         {/* ───────── CONTEÚDO ───────── */}
         <View style={styles.content}>
-          {/* Resumo rápido */}
           <View
             style={[
               styles.statsCard,
@@ -482,7 +452,6 @@ export default function CitizenProfile() {
             </View>
           </View>
 
-          {/* Informações pessoais */}
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Informações pessoais</Text>
             <TouchableOpacity onPress={() => setIsEditing(true)} activeOpacity={0.7}>
@@ -503,7 +472,6 @@ export default function CitizenProfile() {
             <InfoRow icon="card-outline" label="CPF" value={maskCpf(cpf)} />
           </View>
 
-          {/* Notificações */}
           <View style={styles.sectionHeader}>
             <View>
               <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Notificações</Text>
@@ -604,14 +572,6 @@ export default function CitizenProfile() {
             )}
 
             <ToggleRow
-              icon="people-outline"
-              label="Alertas dos meus familiares"
-              detail="Quando o endereço deles entrar em risco"
-              value={prefs.familyAlerts}
-              onChange={(v) => updatePrefs({ familyAlerts: v })}
-              disabled={!notificationsOn}
-            />
-            <ToggleRow
               icon="water-outline"
               label="Lembretes de hidratação"
               detail="Dicas para beber água em dias quentes"
@@ -619,18 +579,8 @@ export default function CitizenProfile() {
               onChange={(v) => updatePrefs({ hydrationReminders: v })}
               disabled={!notificationsOn}
             />
-            <ToggleRow
-              icon="location-outline"
-              label="Pontos de apoio"
-              detail="Novos refúgios e UBS próximos de você"
-              value={prefs.supportPoints}
-              onChange={(v) => updatePrefs({ supportPoints: v })}
-              disabled={!notificationsOn}
-              last
-            />
           </View>
 
-          {/* Preferências / Sobre */}
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Aplicativo</Text>
           </View>
@@ -884,7 +834,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  iconBtnText: { color: BRAND_COLORS.branco, fontSize: 16 },
   userRow: { flexDirection: 'row', alignItems: 'center', marginTop: 26 },
   avatar: {
     width: 68,
@@ -1120,12 +1069,34 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 12,
   },
-  aboutRowColumn: { paddingVertical: 14 },
-  aboutLabel: { fontSize: 13, fontWeight: '700' },
-  aboutValue: { fontSize: 13, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
-  aboutCommit: { fontSize: 12, fontWeight: '600', marginTop: 4 },
-  lgpdNote: { flexDirection: 'row', gap: 8, marginBottom: 20, paddingHorizontal: 4 },
-  lgpdNoteText: { flex: 1, fontSize: 12, lineHeight: 17 },
+  aboutRowColumn: { 
+    paddingVertical: 14 
+  },
+  aboutLabel: { 
+    fontSize: 13, 
+    fontWeight: '700' 
+    },
+  aboutValue: { 
+    fontSize: 13, 
+    fontWeight: '600', 
+    flexShrink: 1, 
+    textAlign: 'right' 
+  },
+  aboutCommit: { 
+    fontSize: 12, 
+    fontWeight: '600', 
+    marginTop: 4 },
+  lgpdNote: { 
+    flexDirection: 'row', 
+    gap: 8, 
+    marginBottom: 20, 
+    paddingHorizontal: 4 
+  },
+  lgpdNoteText: { 
+    flex: 1, 
+    fontSize: 12, 
+    lineHeight: 17 
+  },
   aboutClose: {
     width: '100%',
     height: 50,
@@ -1133,5 +1104,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  aboutCloseText: { fontSize: 14, fontWeight: '800' },
+  aboutCloseText: { 
+    fontSize: 14, 
+    fontWeight: '800' 
+  },
 });

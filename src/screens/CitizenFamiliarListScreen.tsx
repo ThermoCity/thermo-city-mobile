@@ -15,6 +15,7 @@ import ThermoLogo from '../components/ThermoLogo';
 import FamiliarListCard from '../components/FamiliarCard';
 import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
 import { getFamilyMembersService, deleteFamilyMemberService } from '../services/javaThermoCityService';
+import ChangeThemeBtn from '../components/ThemeToggleButton';
 
 export default function FamilyListScreen() {
   const navigation = useNavigation<any>();
@@ -24,6 +25,8 @@ export default function FamilyListScreen() {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   const theme = isDarkMode ? THEMES.dark : THEMES.light;
+  const toggleTheme = () => setIsDarkMode((prev) => !prev);
+
   const fabShadow = {
     elevation: 8,
     shadowColor: BRAND_COLORS.laranjaSol,
@@ -120,14 +123,7 @@ export default function FamilyListScreen() {
           </View>
 
           <View style={styles.topBarActions}>
-            <TouchableOpacity
-              style={styles.iconBtn}
-              onPress={() => setIsDarkMode(!isDarkMode)}
-              accessibilityLabel={isDarkMode ? 'Ativar modo claro' : 'Ativar modo escuro'}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.iconBtnText}>{isDarkMode ? '☀' : '☾'}</Text>
-            </TouchableOpacity>
+            <ChangeThemeBtn isDarkMode={isDarkMode} onPress={toggleTheme} />
           </View>
         </View>
 
@@ -224,18 +220,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  iconBtn: {
-    height: 36,
-    width: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  iconBtnText: {
-    color: BRAND_COLORS.branco,
-    fontSize: 16,
   },
   statsRow: {
     flexDirection: 'row',

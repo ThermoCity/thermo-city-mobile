@@ -13,10 +13,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ThermoLogo from '../components/ThermoLogo';
 import HeatTipCard from '../components/HeatTipCard';
 import HeatLevelCard from '../components/HeatLevelCard';
-import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
+import ThemeToggleButton from '../components/ThemeToggleButton';
+import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
+import { HEAT_LEVELS } from '../utils/thermoCityUtils';
 import { shadow } from '../theme/shadowTheme';
 import { TipCategory, HeatTip, HeatAlertResponse } from '../interfaces/interfaces';
-import { NC_DETAILS } from '../data/ncDataDefinition';
+import { HEAT_TIPS, NC_DETAILS } from '../utils/thermoCityUtils';
 import { getHeatAlertsService } from '../services/.netThermoCityService';
 
 interface CitizenGuideScreenProps {
@@ -30,54 +32,6 @@ const TIP_FILTERS: { key: TipCategory; label: string }[] = [
   { key: 'hidratacao', label: 'Hidratação' },
   { key: 'protecao', label: 'Proteção' },
   { key: 'sintomas', label: 'Sinais de Alerta' },
-];
-
-const HEAT_TIPS: HeatTip[] = [
-  {
-    id: '1',
-    category: 'hidratacao',
-    categoryLabel: 'HIDRATAÇÃO',
-    tag: 'A cada 30 min',
-    title: 'Beba água antes mesmo de sentir sede',
-    description:
-      'A sede já é um sinal inicial de desidratação. Priorize água fresca, água de coco e soro caseiro. Evite bebidas alcoólicas, muito açucaradas ou com excesso de cafeína.',
-  },
-  {
-    id: '2',
-    category: 'protecao',
-    categoryLabel: 'PROTEÇÃO',
-    tag: '10h às 17h',
-    title: 'Evite exposição direta ao sol nos horários de pico',
-    description:
-      'Reduza atividades físicas intensas ao ar livre. Se precisar sair, procure rotas com sombra, use roupas leves de algodão, cores claras, boné e protetor solar.',
-  },
-  {
-    id: '3',
-    category: 'protecao',
-    categoryLabel: 'AMBIENTE',
-    tag: 'Em casa',
-    title: 'Mantenha os ambientes ventilados e úmidos',
-    description:
-      'Feche cortinas e persianas nas janelas que recebem sol direto durante a tarde. Use toalhas úmidas ou bacias com água nos quartos para amenizar o ar seco.',
-  },
-  {
-    id: '4',
-    category: 'sintomas',
-    categoryLabel: 'SINAL DE ALERTA',
-    tag: 'Atenção redobrada',
-    title: 'Reconheça os sinais de insolação e exaustão térmica',
-    description:
-      'Tontura, dor de cabeça forte, náuseas, pele muito quente e seca, confusão mental ou fraqueza exigem resfriamento imediato do corpo e busca por uma UBS ou Refúgio.',
-  },
-  {
-    id: '5',
-    category: 'hidratacao',
-    categoryLabel: 'GRUPOS DE RISCO',
-    tag: 'Cuidado ativo',
-    title: 'Ofereça líquidos regularmente a idosos, crianças e pets',
-    description:
-      'Idosos e bebês têm menor percepção de sede e desidratam mais rápido. Nunca deixe crianças ou animais dentro de veículos estacionados, mesmo por poucos minutos.',
-  },
 ];
 
 // Mapeia o número do nível (1..5) da API .NET para o objeto visual de HEAT_LEVELS
@@ -186,14 +140,8 @@ export default function CitizenGuideScreen({
             </View>
 
             <View style={styles.topBarActions}>
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={toggleTheme}
-                accessibilityLabel={isDarkMode ? 'Ativar modo claro' : 'Ativar modo escuro'}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.iconBtnText}>{isDarkMode ? '☀' : '☾'}</Text>
-              </TouchableOpacity>
+              {/* Uso do Componente Reutilizável */}
+              <ThemeToggleButton isDarkMode={isDarkMode} onPress={toggleTheme} />
             </View>
           </View>
 
