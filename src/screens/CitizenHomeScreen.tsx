@@ -12,17 +12,17 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, Circle, PROVIDER_GOOGLE } from 'react-native-maps';
 import ThermoLogo from '../components/ThermoLogo';
 import SupportPointCard from '../components/SupportPointCard';
 import SupportPointModal from '../components/SupportPointDetailsBtModal';
+// o componente de mapa foi quebrado em dois tipos de arquivos para que pudesse renderizar em app e desktop, o VSCODE reclama mas o EXPO entende e compila normalmente
+import SupportPointsMap from '../components/SupportPointsMap';
 import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
 import { HEAT_LEVELS } from '../utils/thermoCityUtils';
 import { HeatAlertResponse, PlaceFilter, SupportPoint } from '../interfaces/interfaces';
 import { shadow } from '../theme/shadowTheme';
-import { getPlaceBadgeConfig } from '../utils/placeUtils';
 import { useAuth } from '../context/AuthProvider';
-import { logoutService, getTerritorialServices } from '../services/javaThermoCityService';
+import { getTerritorialServices } from '../services/javaThermoCityService';
 import { getHeatAlertsService } from '../services/.netThermoCityService';
 import ChangeThemeBtn from '../components/ThemeToggleButton';
 
@@ -59,7 +59,7 @@ const formatShortDate = (dateStr?: string) => {
 };
 
 export default function CitizenHomeScreen() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [filter, setFilter] = useState<PlaceFilter>('todos');
   const [selectedPoint, setSelectedPoint] = useState<SupportPoint | null>(null);
@@ -131,26 +131,6 @@ export default function CitizenHomeScreen() {
     return Math.round(alertData.hoje.icMaxC);
   }, [alertData?.hoje?.icMaxC]);
 
-  const handleLogout = async () => {
-    Alert.alert('Sair da conta', 'Deseja realmente encerrar sua sessão?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Sair',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await logoutService();
-            if (logout) {
-              await logout();
-            }
-          } catch (error) {
-            Alert.alert('Erro', 'Não foi possível encerrar a sessão.');
-          }
-        },
-      },
-    ]);
-  };
-
   const visiblePoints = useMemo(() => {
     const list =
       filter === 'todos'
@@ -196,14 +176,6 @@ export default function CitizenHomeScreen() {
 
             <View style={styles.topBarActions}>
               <ChangeThemeBtn isDarkMode={isDarkMode} onPress={toggleTheme} />
-              
-              <TouchableOpacity
-                style={[styles.iconBtn, styles.logoutBtn]}
-                onPress={handleLogout}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.logoutText}>Sair</Text>
-              </TouchableOpacity>
             </View>
           </View>
 
@@ -230,7 +202,7 @@ export default function CitizenHomeScreen() {
                     {alertData?.criterio || 'Monitoramento ativo'}
                   </Text>
                   <Text style={styles.humidity}>
-                    Índice de Calor ({alertData?.hoje?.icMaxC?.toFixed(1) ?? '--'}°C) ·{' '}
+                    Índice de Calor ({alertData?.hoje?.icMaxC?.toFixed(1) ?? '--'}°C)
                   </Text>
                 </View>
               </View>
@@ -368,66 +340,15 @@ export default function CitizenHomeScreen() {
             })}
           </View>
 
-          {/* Card do Mapa Interativo */}
-          <View
-            style={[
-              styles.mapCard,
-              { backgroundColor: theme.card, borderColor: theme.cardBorder },
-              cardShadow,
-            ]}
-          >
-            <MapView
-              style={styles.map}
-              provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-              initialRegion={USER_LOCATION}
-              showsUserLocation
-              showsMyLocationButton
-            >
-              <Circle
-                center={{
-                  latitude: USER_LOCATION.latitude,
-                  longitude: USER_LOCATION.longitude,
-                }}
-                radius={2000}
-                strokeColor="rgba(255, 107, 53, 0.35)"
-                fillColor="rgba(255, 107, 53, 0.08)"
-              />
-
-              {visiblePoints.map((point) => {
-                const badge = getPlaceBadgeConfig(point.type, isDarkMode);
-                return (
-                  <Marker
-                    key={point.id}
-                    coordinate={{
-                      latitude: point.latitude,
-                      longitude: point.longitude,
-                    }}
-                    title={point.name}
-                    description={`${point.distanceKm} km · ${point.address}`}
-                    pinColor={badge.pin}
-                    onPress={() => setSelectedPoint(point)}
-                  />
-                );
-              })}
-            </MapView>
-
-            <View style={[styles.mapLegendBar, { borderTopColor: theme.cardBorder }]}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#00A896' }]} />
-                <Text style={[styles.legendText, { color: theme.textSecondary }]}>
-                  Refúgio Climatizado
-                </Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View
-                  style={[styles.legendDot, { backgroundColor: BRAND_COLORS.laranjaSol }]}
-                />
-                <Text style={[styles.legendText, { color: theme.textSecondary }]}>
-                  Unidade Básica (UBS)
-                </Text>
-              </View>
-            </View>
-          </View>
+          {/* Mapa Multiplataforma (.native.tsx / .web.tsx) */}
+          <SupportPointsMap
+            userLocation={USER_LOCATION}
+            points={visiblePoints}
+            theme={theme}
+            isDarkMode={isDarkMode}
+            cardShadow={cardShadow}
+            onSelectPoint={setSelectedPoint}
+          />
 
           {/* Lista Rápida dos Pontos Ordenados por Distância */}
           {isLoadingPoints ? (
@@ -536,14 +457,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  logoutBtn: {
-    paddingHorizontal: 14,
-  },
-  logoutText: {
-    color: BRAND_COLORS.branco,
-    fontSize: 12,
-    fontWeight: '600',
   },
   heroMain: {
     flexDirection: 'row',
@@ -729,37 +642,6 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 13,
-    fontWeight: '600',
-  },
-  mapCard: {
-    borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  map: {
-    width: '100%',
-    height: 260,
-  },
-  mapLegendBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  legendText: {
-    fontSize: 12,
     fontWeight: '600',
   },
   pointsLoader: {
