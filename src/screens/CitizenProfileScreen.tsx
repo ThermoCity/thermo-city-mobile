@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  StatusBar,
   Switch,
   Modal,
   Alert,
@@ -15,7 +14,6 @@ import {
   AppState,
   KeyboardAvoidingView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -389,9 +387,7 @@ export default function CitizenProfile() {
   );
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.navHeader }]}>
-      <StatusBar barStyle="light-content" />
-
+    <View style={[styles.container, { backgroundColor: theme.navHeader }]}>
       <ScrollView
         style={[styles.body, { backgroundColor: theme.background }]}
         contentContainerStyle={styles.bodyContent}
@@ -810,12 +806,12 @@ export default function CitizenProfile() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
+  container: { flex: 1 },
   body: { flex: 1 },
   bodyContent: { paddingBottom: 40 },
 

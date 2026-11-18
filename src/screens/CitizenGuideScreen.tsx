@@ -105,9 +105,6 @@ export default function CitizenGuideScreen({
       : null;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.navHeader }]}>
-      <StatusBar barStyle="light-content" />
-
       <ScrollView
         style={[styles.body, { backgroundColor: theme.background }]}
         contentContainerStyle={styles.bodyContent}
@@ -314,7 +311,6 @@ export default function CitizenGuideScreen({
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
   );
 }
 

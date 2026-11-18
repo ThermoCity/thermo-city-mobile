@@ -6,9 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   TouchableOpacity,
-  StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import ThermoLogo from '../components/ThermoLogo';
@@ -108,9 +106,7 @@ export default function FamilyListScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.navHeader }]}>
-      <StatusBar barStyle="light-content" />
-
+    <View style={[styles.container, { backgroundColor: theme.navHeader }]}>
       {/* ───────── HERO ───────── */}
       <View style={[styles.hero, { backgroundColor: theme.navHeader }]}>
         <View style={styles.topBar}>
@@ -176,12 +172,12 @@ export default function FamilyListScreen() {
       >
         <Ionicons name="add" size={30} color={theme.accentActionText} />
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
   },
 

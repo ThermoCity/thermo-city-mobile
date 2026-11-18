@@ -8,6 +8,7 @@ import MainTabs from './src/components/MainTabs';
 import { BRAND_COLORS } from './src/theme/thermoTheme';
 import RegisterForms from './src/screens/RegisterForms';
 import AgentCitizenGuidanceScreen from './src/screens/AgentCitizenGuidanceScreen';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 const Stack = createNativeStackNavigator();
 
@@ -42,11 +43,13 @@ export default function App() {
   return (
     // PRECISEI ENVOLVER A APLICAÇÃO COM GestureHandlerRootView PARA QUE O REACT-NATIVE-GESTURE-HANDLER FUNCIONE CORRETAMENTE NA PAGINA DE LISTAGEM DE FAMILIARES (CitizenFamiliarListScreen)
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <NavigationContainer>
-          <AppRoutes />
-        </NavigationContainer>
-      </AuthProvider>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <NavigationContainer>
+            <AppRoutes />
+          </NavigationContainer>
+        </AuthProvider>  
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

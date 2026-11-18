@@ -175,3 +175,17 @@ export const HEAT_LEVELS: Record<'NC1' | 'NC2' | 'NC3' | 'NC4' | 'NC5', HeatLeve
   NC4: { code: 'NC4', label: 'Alto', color: '#B85130', textColor: '#FFFFFF' },
   NC5: { code: 'NC5', label: 'Muito alto', color: '#853922', textColor: '#FFFFFF' },
 };
+
+export const formatUpdateTime = (isoString?: string) => {
+  if (!isoString) return '--:--';
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return '--:--';
+  return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+};
+
+export const formatShortDate = (dateStr?: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  return `${parts[2]}/${parts[1]}`;
+};

@@ -5,13 +5,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  StatusBar,
   Modal,
   Pressable,
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import ThermoLogo from '../components/ThermoLogo';
 import VulnerablePersonCard from '../components/VulnerablePersonCard';
 import VulnerabilityGuidanceScreen from './AgentCitizenGuidanceScreen';
@@ -259,9 +257,7 @@ export default function AgentHomeScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.navHeader }]}>
-      <StatusBar barStyle="light-content" />
-
+    <View style={[styles.container, { backgroundColor: theme.navHeader }]}>
       <ScrollView
         style={[styles.body, { backgroundColor: theme.background }]}
         contentContainerStyle={styles.bodyContent}
@@ -530,12 +526,12 @@ export default function AgentHomeScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
   },
   body: {

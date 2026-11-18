@@ -18,7 +18,7 @@ import SupportPointModal from '../components/SupportPointDetailsBtModal';
 // o componente de mapa foi quebrado em dois tipos de arquivos para que pudesse renderizar em app e desktop, o VSCODE reclama mas o EXPO entende e compila normalmente
 import SupportPointsMap from '../components/SupportPointsMap';
 import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
-import { HEAT_LEVELS } from '../utils/thermoCityUtils';
+import { formatShortDate, formatUpdateTime, HEAT_LEVELS } from '../utils/thermoCityUtils';
 import { HeatAlertResponse, PlaceFilter, SupportPoint } from '../interfaces/interfaces';
 import { shadow } from '../theme/shadowTheme';
 import { useAuth } from '../context/AuthProvider';
@@ -44,19 +44,6 @@ const getHeatLevelConfig = (nivel?: number) => {
   return HEAT_LEVELS[key] || HEAT_LEVELS.NC1;
 };
 
-const formatUpdateTime = (isoString?: string) => {
-  if (!isoString) return '--:--';
-  const date = new Date(isoString);
-  if (isNaN(date.getTime())) return '--:--';
-  return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-};
-
-const formatShortDate = (dateStr?: string) => {
-  if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  return `${parts[2]}/${parts[1]}`;
-};
 
 export default function CitizenHomeScreen() {
   const { user } = useAuth();
@@ -152,9 +139,6 @@ export default function CitizenHomeScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.navHeader }]}>
-      <StatusBar barStyle="light-content" />
-
       <ScrollView
         style={[styles.body, { backgroundColor: theme.background }]}
         contentContainerStyle={styles.bodyContent}
@@ -376,17 +360,16 @@ export default function CitizenHomeScreen() {
             ))
           )}
         </View>
-      </ScrollView>
 
-      {/* ───────── BOTTOM SHEET DE DETALHES DO LOCAL ───────── */}
-      <SupportPointModal
+        <SupportPointModal
         point={selectedPoint}
         theme={theme}
         isDarkMode={isDarkMode}
         onClose={() => setSelectedPoint(null)}
         onOpenMaps={openExternalMaps}
       />
-    </SafeAreaView>
+
+      </ScrollView>
   );
 }
 

@@ -5,7 +5,6 @@ import {
   Platform,
   ScrollView,
   ScrollViewInstance,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -13,7 +12,6 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Crypto from 'expo-crypto';
 import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
 import { useAuth } from '../context/AuthProvider';
@@ -51,7 +49,6 @@ export default function HealthChatScreen() {
   const [sessionUuid, setSessionUuid] = useState<string>(() => Crypto.randomUUID());
   const scrollViewRef = useRef<ScrollViewInstance>(null);
 
-  // Caso receba via props de navegação externa ou utilize o estado interno
   const isDarkMode = internalDarkMode;
   const theme = isDarkMode ? THEMES.dark : THEMES.light;
 
@@ -126,7 +123,6 @@ export default function HealthChatScreen() {
   };
 
   const handleClearChat = () => {
-    // Gera um novo UUID para iniciar uma nova sessão de memória no backend
     setSessionUuid(Crypto.randomUUID());
     setMessages([
       {
@@ -139,9 +135,7 @@ export default function HealthChatScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.navHeader }]}>
-      <StatusBar barStyle="light-content" />
-
+    <View style={[styles.container, { backgroundColor: theme.navHeader }]}>
       <KeyboardAvoidingView
         style={[styles.flex, { backgroundColor: theme.background }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -149,8 +143,6 @@ export default function HealthChatScreen() {
         {/* ───────── CABEÇALHO ───────── */}
         <View style={[styles.headerContainer, { backgroundColor: theme.navHeader }]}>
           <View style={styles.headerRow}>
-            {/* Removido o botão de voltar caso não venha via props, ou mantido dinâmico se necessário */}
-
             <View style={styles.avatarContainer}>
               <Ionicons name="medkit" size={22} color={BRAND_COLORS.laranjaSol} />
             </View>
@@ -166,7 +158,6 @@ export default function HealthChatScreen() {
               </View>
             </View>
 
-            {/* Utilização do componente reutilizável de alternância de tema */}
             <ChangeThemeBtn isDarkMode={isDarkMode} onPress={toggleTheme} />
 
             <TouchableOpacity
@@ -317,7 +308,7 @@ export default function HealthChatScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
