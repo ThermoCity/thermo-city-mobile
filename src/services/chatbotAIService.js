@@ -2,6 +2,10 @@ import axios from 'axios';
 
 const API_CHATBOT_SAUDE_URL = process.env.EXPO_PUBLIC_API_JAVA_CHATBOT_SAUDE_IA;
 
+
+// -------------------- SERVICE DA API ASSISTENTE DE IA NO CHAT JAVA  --------------------
+
+
 export const sendHealthChatMessageService = async ({ conversationId, message }) => {
   if (!API_CHATBOT_SAUDE_URL) {
     throw new Error('Variável EXPO_PUBLIC_API_NET_CHATBOT_SAUDE_IA não definida no .env');

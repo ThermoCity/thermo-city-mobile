@@ -83,7 +83,10 @@ const getAuthConfig = async () => {
   }
 };
 
-// API JAVA SERVICE
+
+// -------------------- SERVICE DA API AUTENTICAÇÃO SIGNIN E SIGNUP JAVA  --------------------
+
+// API SIGNUP SERVICE
 export const registerService = async (nome, email, senha, telefone, cpf, cep) => {
   try {
     const payload = {
@@ -114,6 +117,7 @@ export const registerService = async (nome, email, senha, telefone, cpf, cep) =>
   }
 };
 
+// API SIGNIN SERVICE
 export const loginService = async (email, senha) => {
   try {
     const response = await axios.post(API_LOGIN_URL, { email, senha });
@@ -146,6 +150,9 @@ export const logoutService = async () => {
     console.error('Erro ao remover o token/usuário:', error);
   }
 };
+
+
+// -------------------- SERVICE DA API CRUD FAMILIARES JAVA  --------------------
 
 // API PARA GESTAO DOS FAMILIARES
 export const registerVulnerablePersonService = async (familiarData) => {
@@ -238,6 +245,8 @@ export const deleteFamilyMemberService = async (id) => {
 };
 
 
+// -------------------- SERVICE DA API USER JAVA  --------------------
+
 // SERVICE PARA UPDATE DO USUARIO
 
 export const getUserService = async () => {
@@ -263,7 +272,7 @@ export const updateUserService = async (userData) => {
   }
 };
 
-// SERVICE DA API TERRITORIAL DE JAVA
+// -------------------- SERVICE DA API TERRITORIAL JAVA  --------------------
 
 // Helper para calcular distância em km (Haversine) caso distanciaMetros venha null
 const calculateDistanceKm = (lat1, lon1, lat2, lon2) => {
@@ -319,6 +328,9 @@ export const getTerritorialServices = async (userLat = -22.1256, userLon = -51.3
     throw new Error(error.response?.data?.message || 'Erro ao carregar pontos de apoio no mapa.');
   }
 };
+
+
+// -------------------- SERVICE DA API AGENTE DE SAÚDE JAVA  --------------------
 
 // API LISTA PRIORITÁRIA DO AGENTE DE SAÚDE
 export const getAgentPriorityListService = async () => {
@@ -446,6 +458,9 @@ export const getAgentContactStatusByIdService = async (id) => {
     );
   }
 };
+
+
+// -------------------- SERVICE DA API ASSISTENTE DE IA PARA ATENDIMENTO PERSONALIZADO JAVA  --------------------
 
 // API DE ORIENTAÇÃO DE CUIDADOS PARA PESSOAS VULNERAVEIS COM IA
 export const getVulnerablePersonGuidanceService = async (pessoaId) => {
