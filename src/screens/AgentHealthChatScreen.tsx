@@ -18,6 +18,7 @@ import * as Crypto from 'expo-crypto';
 import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
 import { useAuth } from '../context/AuthProvider';
 import { sendHealthChatMessageService } from '../services/chatbotAIService';
+import ChangeThemeBtn from '../components/ThemeToggleButton';
 
 type Message = {
   id: string;
@@ -26,12 +27,6 @@ type Message = {
   time: string;
   isError?: boolean;
 };
-
-interface HealthChatScreenProps {
-  onBack?: () => void;
-  isDarkMode?: boolean;
-  onToggleDarkMode?: () => void;
-}
 
 const getCurrentTime = () =>
   new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -48,11 +43,7 @@ const sanitizeUserName = (name?: string) => {
     .replace(/^-+|-+$/g, '');
 };
 
-export default function HealthChatScreen({
-  onBack,
-  isDarkMode: externalDarkMode,
-  onToggleDarkMode,
-}: HealthChatScreenProps) {
+export default function HealthChatScreen() {
   const { user } = useAuth();
   const [internalDarkMode, setInternalDarkMode] = useState<boolean>(false);
   const [inputText, setInputText] = useState<string>('');
@@ -60,15 +51,12 @@ export default function HealthChatScreen({
   const [sessionUuid, setSessionUuid] = useState<string>(() => Crypto.randomUUID());
   const scrollViewRef = useRef<ScrollViewInstance>(null);
 
-  const isDarkMode = externalDarkMode !== undefined ? externalDarkMode : internalDarkMode;
+  // Caso receba via props de navegação externa ou utilize o estado interno
+  const isDarkMode = internalDarkMode;
   const theme = isDarkMode ? THEMES.dark : THEMES.light;
 
   const toggleTheme = () => {
-    if (onToggleDarkMode) {
-      onToggleDarkMode();
-    } else {
-      setInternalDarkMode((prev) => !prev);
-    }
+    setInternalDarkMode((prev) => !prev);
   };
 
   // Concatena: <nome-do-usuario>-<randomUUID>
@@ -161,16 +149,7 @@ export default function HealthChatScreen({
         {/* ───────── CABEÇALHO ───────── */}
         <View style={[styles.headerContainer, { backgroundColor: theme.navHeader }]}>
           <View style={styles.headerRow}>
-            {onBack ? (
-              <TouchableOpacity
-                onPress={onBack}
-                accessibilityLabel="Voltar"
-                activeOpacity={0.7}
-                style={styles.backButton}
-              >
-                <Ionicons name="chevron-back" size={22} color={BRAND_COLORS.branco} />
-              </TouchableOpacity>
-            ) : null}
+            {/* Removido o botão de voltar caso não venha via props, ou mantido dinâmico se necessário */}
 
             <View style={styles.avatarContainer}>
               <Ionicons name="medkit" size={22} color={BRAND_COLORS.laranjaSol} />
@@ -187,18 +166,8 @@ export default function HealthChatScreen({
               </View>
             </View>
 
-            <TouchableOpacity
-              accessibilityLabel={isDarkMode ? 'Ativar modo claro' : 'Ativar modo escuro'}
-              activeOpacity={0.7}
-              style={styles.optionsButton}
-              onPress={toggleTheme}
-            >
-              <Ionicons
-                name={isDarkMode ? 'sunny-outline' : 'moon-outline'}
-                size={20}
-                color={BRAND_COLORS.branco}
-              />
-            </TouchableOpacity>
+            {/* Utilização do componente reutilizável de alternância de tema */}
+            <ChangeThemeBtn isDarkMode={isDarkMode} onPress={toggleTheme} />
 
             <TouchableOpacity
               accessibilityLabel="Limpar conversa"
@@ -372,15 +341,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  backButton: {
-    height: 36,
-    width: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginRight: 10,
-  },
   avatarContainer: {
     marginRight: 12,
     height: 44,
@@ -410,11 +370,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 999,
     backgroundColor: BRAND_COLORS.laranjaSol,
-  },
-  headerSubtitle: {
-    marginTop: 3,
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
   },
   optionsButton: {
     height: 36,

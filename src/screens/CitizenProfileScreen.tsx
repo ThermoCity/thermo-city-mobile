@@ -34,6 +34,9 @@ import {
 } from '../services/javaThermoCityService';
 import { NotificationPrefs } from '../utils/notificationUtils';
 import ChangeThemeBtn from '../components/ThemeToggleButton';
+import {
+  scheduleHeatAlertNotification,
+} from '../services/notificationService';
 
 type PermissionState = 'undetermined' | 'granted' | 'denied';
 
@@ -165,38 +168,58 @@ export default function CitizenProfile() {
       .catch(() => {});
   }, []);
 
-  const updatePrefs = (patch: Partial<NotificationPrefs>) => {
-    const next = { ...prefs, ...patch };
-    setPrefs(next);
-    AsyncStorage.setItem(PREFS_KEY, JSON.stringify(next)).catch(() => {});
-  };
-
-  const handleEnableNotifications = async () => {
-    if (Platform.OS === 'web') {
-      Alert.alert('Notificações', 'As notificações estão disponíveis no aplicativo móvel.');
-      return;
-    }
+  // Solicita permissão ao sistema operacional na primeira ativação do toggle
+  const requestSystemPermissionIfNeeded = async (): Promise<boolean> => {
+    if (Platform.OS === 'web') return true;
     try {
       const current = await Notifications.getPermissionsAsync();
+      if (current.status === 'granted') {
+        setPermission('granted');
+        return true;
+      }
       if (current.status === 'denied' && !current.canAskAgain) {
         Alert.alert(
           'Notificações bloqueadas',
-          'Ative as notificações do ThermoCity nos ajustes do dispositivo para receber alertas de calor.',
+          'Ative as notificações do ThermoCity nos ajustes do dispositivo para receber alertas.',
           [
             { text: 'Agora não', style: 'cancel' },
             { text: 'Abrir ajustes', onPress: () => Linking.openSettings() },
           ]
         );
-        return;
+        return false;
       }
       const result = await Notifications.requestPermissionsAsync();
       setPermission(result.status as PermissionState);
+      return result.status === 'granted';
     } catch (e: any) {
       Alert.alert('Notificações indisponíveis', e?.message || 'Não foi possível solicitar a permissão.');
+      return false;
     }
   };
 
-  const notificationsOn = permission === 'granted';
+  const updatePrefs = async (patch: Partial<NotificationPrefs>) => {
+    // Se está tentando ativar e ainda não tem permissão do OS, solicita agora
+    if (patch.heatAlerts === true && permission !== 'granted') {
+      const granted = await requestSystemPermissionIfNeeded();
+      if (!granted) return; // Se o usuário negou, aborta a mudança do switch
+    }
+
+    const next = { ...prefs, ...patch };
+    setPrefs(next);
+    await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(next)).catch(() => {});
+
+    // Dispara validações/agendamentos 5s após alteração se ativo
+    if (Platform.OS !== 'web' && permission === 'granted') {
+      if (patch.heatAlerts === true || patch.minLevel) {
+        if (next.heatAlerts) {
+          scheduleHeatAlertNotification(next.minLevel);
+        }
+      }
+    }
+  };
+
+  // O card superior reflete se a permissão foi concedida E o switch está ligado
+  const notificationsOn = permission === 'granted' && prefs.heatAlerts;
 
   const handleLogout = () => {
     Alert.alert('Sair da conta', 'Deseja realmente encerrar sua sessão?', [
@@ -313,7 +336,6 @@ export default function CitizenProfile() {
     detail,
     value,
     onChange,
-    disabled,
     last,
   }: {
     icon: any;
@@ -321,14 +343,12 @@ export default function CitizenProfile() {
     detail: string;
     value: boolean;
     onChange: (v: boolean) => void;
-    disabled?: boolean;
     last?: boolean;
   }) => (
     <View
       style={[
         styles.toggleRow,
         !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.cardBorder },
-        disabled && { opacity: 0.45 },
       ]}
     >
       <View style={[styles.infoIcon, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder }]}>
@@ -341,7 +361,6 @@ export default function CitizenProfile() {
       <Switch
         value={value}
         onValueChange={onChange}
-        disabled={disabled}
         trackColor={{ false: theme.inputBorder, true: BRAND_COLORS.laranjaSol }}
         thumbColor={BRAND_COLORS.branco}
       />
@@ -481,7 +500,7 @@ export default function CitizenProfile() {
             </View>
           </View>
 
-          {!notificationsOn && Platform.OS !== 'web' && (
+          {!notificationsOn && permission === 'denied' && Platform.OS !== 'web' && (
             <View
               style={[
                 styles.permissionBanner,
@@ -494,18 +513,18 @@ export default function CitizenProfile() {
               <Ionicons name="notifications-off-outline" size={22} color={BRAND_COLORS.laranjaSol} />
               <View style={styles.bannerTexts}>
                 <Text style={[styles.bannerTitle, { color: theme.textPrimary }]}>
-                  Notificações desativadas
+                  Notificações bloqueadas no sistema
                 </Text>
                 <Text style={[styles.bannerDesc, { color: theme.textSecondary }]}>
-                  Ative para receber alertas de calor intenso a tempo.
+                  Ative nas configurações do dispositivo para receber alertas.
                 </Text>
               </View>
               <TouchableOpacity
                 style={styles.bannerBtn}
-                onPress={handleEnableNotifications}
+                onPress={() => Linking.openSettings()}
                 activeOpacity={0.85}
               >
-                <Text style={styles.bannerBtnText}>Ativar</Text>
+                <Text style={styles.bannerBtnText}>Ajustes</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -523,14 +542,14 @@ export default function CitizenProfile() {
               detail="Avisos da Defesa Civil e INMET"
               value={prefs.heatAlerts}
               onChange={(v) => updatePrefs({ heatAlerts: v })}
-              disabled={!notificationsOn}
+              last
             />
 
             {prefs.heatAlerts && (
               <View
                 style={[
                   styles.levelBlock,
-                  { borderBottomColor: theme.cardBorder, opacity: notificationsOn ? 1 : 0.45 },
+                  { borderBottomColor: theme.cardBorder },
                 ]}
               >
                 <Text style={[styles.levelTitle, { color: theme.textSecondary }]}>
@@ -542,7 +561,6 @@ export default function CitizenProfile() {
                     return (
                       <TouchableOpacity
                         key={level.code}
-                        disabled={!notificationsOn}
                         activeOpacity={0.8}
                         onPress={() => updatePrefs({ minLevel: level.code })}
                         accessibilityLabel={`${level.code} ${level.label}`}
@@ -566,19 +584,10 @@ export default function CitizenProfile() {
                   })}
                 </View>
                 <Text style={[styles.levelHint, { color: theme.textSecondary }]}>
-                  {HEAT_LEVELS[prefs.minLevel].label} ou acima
+                  {HEAT_LEVELS[prefs.minLevel]?.label || prefs.minLevel} ou acima
                 </Text>
               </View>
             )}
-
-            <ToggleRow
-              icon="water-outline"
-              label="Lembretes de hidratação"
-              detail="Dicas para beber água em dias quentes"
-              value={prefs.hydrationReminders}
-              onChange={(v) => updatePrefs({ hydrationReminders: v })}
-              disabled={!notificationsOn}
-            />
           </View>
 
           <View style={styles.sectionHeader}>
@@ -1069,34 +1078,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 12,
   },
-  aboutRowColumn: { 
-    paddingVertical: 14 
-  },
-  aboutLabel: { 
-    fontSize: 13, 
-    fontWeight: '700' 
-    },
-  aboutValue: { 
-    fontSize: 13, 
-    fontWeight: '600', 
-    flexShrink: 1, 
-    textAlign: 'right' 
-  },
-  aboutCommit: { 
-    fontSize: 12, 
-    fontWeight: '600', 
-    marginTop: 4 },
-  lgpdNote: { 
-    flexDirection: 'row', 
-    gap: 8, 
-    marginBottom: 20, 
-    paddingHorizontal: 4 
-  },
-  lgpdNoteText: { 
-    flex: 1, 
-    fontSize: 12, 
-    lineHeight: 17 
-  },
+  aboutRowColumn: { paddingVertical: 14 },
+  aboutLabel: { fontSize: 13, fontWeight: '700' },
+  aboutValue: { fontSize: 13, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
+  aboutCommit: { fontSize: 12, fontWeight: '600', marginTop: 4 },
+  lgpdNote: { flexDirection: 'row', gap: 8, marginBottom: 20, paddingHorizontal: 4 },
+  lgpdNoteText: { flex: 1, fontSize: 12, lineHeight: 17 },
   aboutClose: {
     width: '100%',
     height: 50,
@@ -1104,8 +1091,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  aboutCloseText: { 
-    fontSize: 14, 
-    fontWeight: '800' 
-  },
+  aboutCloseText: { fontSize: 14, fontWeight: '800' },
 });
