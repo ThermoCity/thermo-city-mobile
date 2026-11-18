@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Pressable, StyleSheet, Linking } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { BRAND_COLORS, HEAT_LEVELS, THEMES } from '../theme/thermoTheme';
+import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
+import { HEAT_LEVELS } from '../utils/thermoCityUtils';
 import { shadow } from '../theme/shadowTheme';
 
 type AppTheme = typeof THEMES.light;

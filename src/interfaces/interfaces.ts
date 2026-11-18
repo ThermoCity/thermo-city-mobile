@@ -1,4 +1,3 @@
-// DADOS MOCKADOS PARA DESENVOLVIMENTO
 export interface VulnerablePerson {
   id: string;
   name: string;

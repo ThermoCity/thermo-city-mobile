@@ -20,6 +20,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1e15ea07-2e79-400f-a04e-0ff6ff2c2ea1"
+      }
+    },
+    "owner": "wesley1812"
   }
 }

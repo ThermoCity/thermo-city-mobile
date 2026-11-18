@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { Ionicons } from '@expo/vector-icons';
-import { BRAND_COLORS, THEMES, ThemeTokens } from '../theme/thermoTheme';
+import { BRAND_COLORS, THEMES, ThemeToggles } from '../theme/thermoTheme';
 import { shadow } from '../theme/shadowTheme';
 import { Familiar } from '../interfaces/interfaces';
 
@@ -15,7 +15,7 @@ interface FamiliarListCardProps {
   refreshing?: boolean;
   ListHeaderComponent?: React.ReactElement | null;
   ListFooterComponent?: React.ReactElement | null;
-  theme?: ThemeTokens;
+  theme?: ThemeToggles;
   isDarkMode?: boolean;
 }
 
@@ -162,8 +162,8 @@ export default function FamiliarListCard({
       disableRightSwipe
       keyExtractor={(item, index) => String(item?.id || index)}
       ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-      ListHeaderComponent={ListHeaderComponent}
-      ListFooterComponent={ListFooterComponent}
+      ListHeaderComponentStyle={ListHeaderComponent}
+      ListFooterComponentStyle={ListFooterComponent}
       onRefresh={onRefresh}
       refreshing={refreshing}
       ListEmptyComponent={
