@@ -5,7 +5,7 @@ import { BRAND_COLORS } from '../theme/thermoTheme';
 import { SupportPoint } from '../interfaces/interfaces';
 import { getPlaceBadgeConfig } from '../utils/placeUtils';
 
-interface SupportPointsMapProps {
+interface SupportPointsMapMobileProps {
   userLocation: {
     latitude: number;
     longitude: number;
@@ -19,14 +19,14 @@ interface SupportPointsMapProps {
   onSelectPoint: (point: SupportPoint) => void;
 }
 
-export default function SupportPointsMap({
+export default function SupportPointsMapMobile({
   userLocation,
   points,
   theme,
   isDarkMode,
   cardShadow,
   onSelectPoint,
-}: SupportPointsMapProps) {
+}: SupportPointsMapMobileProps) {
   return (
     <View
       style={[
