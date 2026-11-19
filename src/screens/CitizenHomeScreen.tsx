@@ -325,14 +325,14 @@ export default function CitizenHomeScreen() {
           </View>
 
           {/* Mapa Multiplataforma (.native.tsx / .web.tsx) */}
-          <SupportPointsMap
+          {/* <SupportPointsMap
             userLocation={USER_LOCATION}
             points={visiblePoints}
             theme={theme}
             isDarkMode={isDarkMode}
             cardShadow={cardShadow}
             onSelectPoint={setSelectedPoint}
-          />
+          /> */}
 
           {/* Lista Rápida dos Pontos Ordenados por Distância */}
           {isLoadingPoints ? (
@@ -370,6 +370,7 @@ export default function CitizenHomeScreen() {
       />
 
       </ScrollView>
+      
   );
 }
 
