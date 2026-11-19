@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import MapView, { Marker, Circle } from 'react-native-maps';
+import MapView, { Marker, Circle, PROVIDER_GOOGLE } from 'react-native-maps';
 import { BRAND_COLORS } from '../theme/thermoTheme';
 import { SupportPoint } from '../interfaces/interfaces';
 import { getPlaceBadgeConfig } from '../utils/placeUtils';
@@ -37,6 +37,7 @@ export default function SupportPointsMapMobile({
     >
       <MapView
         style={styles.map}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={userLocation}
         showsUserLocation
         showsMyLocationButton
