@@ -5,18 +5,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  StatusBar,
   Platform,
-  Linking,
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
 import ThermoLogo from '../components/ThermoLogo';
 import SupportPointCard from '../components/SupportPointCard';
 import SupportPointModal from '../components/SupportPointDetailsBtModal';
-// o componente de mapa foi quebrado em dois tipos de arquivos para que pudesse renderizar em app e desktop, o VSCODE reclama mas o EXPO entende e compila normalmente
-import SupportPointsMap from '../components/SupportPointsMap';
+import SupportPointsMapWeb from '../components/SupportPointsMapWeb';
 import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
 import { formatShortDate, formatUpdateTime, HEAT_LEVELS } from '../utils/thermoCityUtils';
 import { HeatAlertResponse, PlaceFilter, SupportPoint } from '../interfaces/interfaces';
@@ -25,6 +23,11 @@ import { useAuth } from '../context/AuthProvider';
 import { getTerritorialServices } from '../services/javaThermoCityService';
 import { getHeatAlertsService } from '../services/.netThermoCityService';
 import ChangeThemeBtn from '../components/ThemeToggleButton';
+
+const SupportPointsMapMobile =
+  Platform.OS !== 'web'
+    ? require('../components/SupportPointsMapMobile').default
+    : null;
 
 const USER_LOCATION = {
   latitude: -22.1256,
@@ -44,7 +47,6 @@ const getHeatLevelConfig = (nivel?: number) => {
   return HEAT_LEVELS[key] || HEAT_LEVELS.NC1;
 };
 
-
 export default function CitizenHomeScreen() {
   const { user } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
@@ -57,8 +59,12 @@ export default function CitizenHomeScreen() {
   const [supportPoints, setSupportPoints] = useState<SupportPoint[]>([]);
   const [isLoadingPoints, setIsLoadingPoints] = useState<boolean>(true);
 
+  const [isToastVisible, setIsToastVisible] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string>('');
+
   const theme = isDarkMode ? THEMES.dark : THEMES.light;
   const cardShadow = shadow(isDarkMode);
+  const isWeb = Platform.OS === 'web';
 
   const toggleTheme = () => setIsDarkMode((prev) => !prev);
 
@@ -126,19 +132,31 @@ export default function CitizenHomeScreen() {
     return [...list].sort((a, b) => a.distanceKm - b.distanceKm);
   }, [filter, supportPoints]);
 
-  const openExternalMaps = (point: SupportPoint) => {
-    const label = encodeURIComponent(point.name);
-    const url = Platform.select({
-      ios: `maps:0,0?q=${label}@${point.latitude},${point.longitude}`,
-      android: `geo:0,0?q=${point.latitude},${point.longitude}(${label})`,
-      default: `https://www.google.com/maps/search/?api=1&query=${point.latitude},${point.longitude}`,
-    });
-    if (url) {
-      Linking.openURL(url);
+  const handleSimulateRoute = async (point: SupportPoint) => {
+    try {
+      if (!isWeb) {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            'Permissão negada',
+            'Permita o acesso à localização para simular a rota até o ponto de apoio.'
+          );
+          return;
+        }
+      }
+
+      setToastMessage(`Rota simulada até ${point.name}`);
+      setIsToastVisible(true);
+      setTimeout(() => {
+        setIsToastVisible(false);
+      }, 2400);
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível simular a rota no momento.');
     }
   };
 
   return (
+    <View style={[styles.container, { backgroundColor: theme.navHeader }]}>
       <ScrollView
         style={[styles.body, { backgroundColor: theme.background }]}
         contentContainerStyle={styles.bodyContent}
@@ -324,15 +342,28 @@ export default function CitizenHomeScreen() {
             })}
           </View>
 
-          {/* Mapa Multiplataforma (.native.tsx / .web.tsx) */}
-          {/* <SupportPointsMap
-            userLocation={USER_LOCATION}
-            points={visiblePoints}
-            theme={theme}
-            isDarkMode={isDarkMode}
-            cardShadow={cardShadow}
-            onSelectPoint={setSelectedPoint}
-          /> */}
+          {/* Mapa por Plataforma (Web vs. Mobile) */}
+          {isWeb ? (
+            <SupportPointsMapWeb
+              userLocation={USER_LOCATION}
+              points={visiblePoints}
+              theme={theme}
+              isDarkMode={isDarkMode}
+              cardShadow={cardShadow}
+              onSelectPoint={setSelectedPoint}
+            />
+          ) : (
+            SupportPointsMapMobile && (
+              <SupportPointsMapMobile
+                userLocation={USER_LOCATION}
+                points={visiblePoints}
+                theme={theme}
+                isDarkMode={isDarkMode}
+                cardShadow={cardShadow}
+                onSelectPoint={setSelectedPoint}
+              />
+            )
+          )}
 
           {/* Lista Rápida dos Pontos Ordenados por Distância */}
           {isLoadingPoints ? (
@@ -362,20 +393,27 @@ export default function CitizenHomeScreen() {
         </View>
 
         <SupportPointModal
-        point={selectedPoint}
-        theme={theme}
-        isDarkMode={isDarkMode}
-        onClose={() => setSelectedPoint(null)}
-        onOpenMaps={openExternalMaps}
-      />
-
+          point={selectedPoint}
+          theme={theme}
+          isDarkMode={isDarkMode}
+          onClose={() => setSelectedPoint(null)}
+          onOpenMaps={handleSimulateRoute}
+        />
       </ScrollView>
-      
+
+      {isToastVisible ? (
+        <View style={styles.toastContainer}>
+          <Ionicons name="navigate" size={18} color={BRAND_COLORS.laranjaSol} />
+          <Text style={styles.toastText}>{toastMessage}</Text>
+          <Ionicons name="checkmark-circle" size={18} color="#2E9E6B" />
+        </View>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
   },
   body: {
@@ -432,15 +470,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  iconBtn: {
-    height: 36,
-    minWidth: 36,
-    borderRadius: 18,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   heroMain: {
     flexDirection: 'row',
@@ -644,5 +673,27 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
+  },
+
+  /* Toast */
+  toastContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    backgroundColor: BRAND_COLORS.azulEscuro,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    elevation: 6,
+  },
+  toastText: {
+    marginLeft: 12,
+    flex: 1,
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: BRAND_COLORS.branco,
   },
 });

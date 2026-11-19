@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { BRAND_COLORS } from '../theme/thermoTheme';
 import { SupportPoint } from '../interfaces/interfaces';
 
-interface SupportPointsMapProps {
+interface SupportPointsMapWebProps {
   userLocation: {
     latitude: number;
     longitude: number;
@@ -17,13 +17,13 @@ interface SupportPointsMapProps {
   onSelectPoint: (point: SupportPoint) => void;
 }
 
-export default function SupportPointsMap({
+export default function SupportPointsMapWeb({
   userLocation,
   points,
   theme,
   cardShadow,
   onSelectPoint,
-}: SupportPointsMapProps) {
+}: SupportPointsMapWebProps) {
   const [focusedPoint, setFocusedPoint] = useState<SupportPoint | null>(null);
 
   const activeLat = focusedPoint ? focusedPoint.latitude : userLocation.latitude;
