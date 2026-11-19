@@ -16,6 +16,11 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDVDS11aABDwZ_rmjTDE6FU1b-eL5Wljlc"
+        }
+      },
       "predictiveBackGestureEnabled": false,
       "package": "com.wesley1812.thermocitymobile"
     },
