@@ -8,12 +8,12 @@ import {
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { BRAND_COLORS, THEMES } from '../theme/thermoTheme';
 import { HEAT_LEVELS } from '../utils/thermoCityUtils';
 import { shadow } from '../theme/shadowTheme';
 import { getVulnerablePersonGuidanceService } from '../services/javaThermoCityService';
+import ChangeThemeBtn from '../components/ThemeToggleButton';
 
 interface VulnerabilityGuidanceScreenProps {
   person: {
@@ -28,14 +28,13 @@ interface VulnerabilityGuidanceScreenProps {
     nearestShelter?: string;
   };
   onBack: () => void;
-  isDarkMode?: boolean;
 }
 
 export default function VulnerabilityGuidanceScreen({
   person,
   onBack,
-  isDarkMode = false,
 }: VulnerabilityGuidanceScreenProps) {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [guidanceData, setGuidanceData] = useState<any | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -44,6 +43,8 @@ export default function VulnerabilityGuidanceScreen({
   const softSurface = isDarkMode ? '#242B30' : '#F3F6F8';
   const levelInfo = HEAT_LEVELS[person.heatLevel as keyof typeof HEAT_LEVELS] || HEAT_LEVELS.NC3;
   const cardShadow = shadow(isDarkMode);
+
+  const toggleTheme = () => setIsDarkMode((prev) => !prev);
 
   useEffect(() => {
     let isMounted = true;
@@ -79,7 +80,7 @@ export default function VulnerabilityGuidanceScreen({
   }, [person]);
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.navHeader }]}>
+    <View style={[styles.container, { backgroundColor: theme.navHeader }]}>
       <StatusBar barStyle="light-content" />
 
       {/* ───────── Cabeçalho ───────── */}
@@ -96,6 +97,7 @@ export default function VulnerabilityGuidanceScreen({
           <Text style={styles.headerTitle} numberOfLines={1}>
             Roteiro de Atendimento (IA)
           </Text>
+          <ChangeThemeBtn isDarkMode={isDarkMode} onPress={toggleTheme} />
         </View>
 
         <View style={styles.personSummaryCard}>
@@ -259,12 +261,12 @@ export default function VulnerabilityGuidanceScreen({
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
+  container: { flex: 1 },
   headerContainer: {
     paddingHorizontal: 20,
     paddingTop: 12,

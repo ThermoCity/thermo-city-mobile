@@ -53,3 +53,5 @@ export default function App() {
     </GestureHandlerRootView>
   );
 }
+
+// PROJETO FINALIZADOOOOOOOOO
